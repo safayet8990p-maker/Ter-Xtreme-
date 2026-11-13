@@ -1,0 +1,6 @@
+{
+  "name": "Ter Xtreme",
+  "description": "Standalone Android Linux terminal running Alpine aarch64 in proot with an xterm.js WebView UI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

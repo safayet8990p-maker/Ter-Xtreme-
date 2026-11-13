@@ -1,0 +1,494 @@
+@font-face {
+  font-family: "Space Mono";
+  font-style: normal;
+  font-weight: 400;
+  src: url("https://appassets.androidplatform.net/res/font/space_mono.ttf") format("truetype");
+}
+
+:root {
+  --bg: #f4f2ff;
+  --bar: #e6e2fb;
+  --fg: #1b1740;
+  --dim: #6d68a0;
+  --ac: #d6195f;
+  --ac2: #0a7fa8;
+  --err: #c4161c;
+  --cursor: #d6195f;
+  --sel: rgba(214, 25, 95, 0.25);
+  box-sizing: border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0a14;
+    --bar: #15132a;
+    --fg: #e8e6ff;
+    --dim: #7f7ab0;
+    --ac: #ff3d81;
+    --ac2: #36e2ff;
+    --err: #ff6b6b;
+    --cursor: #ff3d81;
+    --sel: rgba(255, 61, 129, 0.28);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b0a14;
+  --bar: #15132a;
+  --fg: #e8e6ff;
+  --dim: #7f7ab0;
+  --ac: #ff3d81;
+  --ac2: #36e2ff;
+  --err: #ff6b6b;
+  --cursor: #ff3d81;
+  --sel: rgba(255, 61, 129, 0.28);
+  color-scheme: dark;
+}
+
+:root[data-theme="amber"] {
+  --bg: #120c02;
+  --bar: #201505;
+  --fg: #ffd58a;
+  --dim: #9a7a3c;
+  --ac: #ffb000;
+  --ac2: #ff7a1a;
+  --err: #ff5a4d;
+  --cursor: #ffb000;
+  --sel: rgba(255, 176, 0, 0.28);
+  color-scheme: dark;
+}
+
+:root[data-theme="ice"] {
+  --bg: #06141c;
+  --bar: #0b2430;
+  --fg: #d6f4ff;
+  --dim: #5f93a8;
+  --ac: #5ee6ff;
+  --ac2: #a78bfa;
+  --err: #ff7a8a;
+  --cursor: #5ee6ff;
+  --sel: rgba(94, 230, 255, 0.25);
+  color-scheme: dark;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.45 "Space Mono", ui-monospace, Menlo, Consolas, monospace;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bar);
+  border-bottom: 2px solid var(--ac);
+  flex: none;
+}
+
+header b {
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  color: var(--ac);
+}
+
+header span {
+  color: var(--dim);
+  font-size: 12px;
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ac);
+  flex: none;
+}
+
+#btn-test,
+#gear {
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  min-height: 36px;
+  cursor: pointer;
+}
+
+#btn-test {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 10px;
+  color: var(--ac2);
+  border-color: var(--ac2);
+}
+
+#gear {
+  font-size: 17px;
+  min-width: 40px;
+  padding: 0 8px;
+}
+
+#tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+  background: var(--bar);
+  overflow-x: auto;
+  flex: none;
+  scrollbar-width: none;
+}
+
+#tabs::-webkit-scrollbar {
+  display: none;
+}
+
+#tabs button {
+  flex: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  padding: 7px 12px;
+  min-height: 34px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+}
+
+#tabs button.on {
+  color: var(--fg);
+  background: var(--bg);
+  border-color: var(--dim);
+}
+
+#tabs .x {
+  opacity: 0.75;
+  padding: 0 4px;
+  font-weight: 700;
+}
+
+#term-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--bg);
+  padding: 6px 8px 98px;
+  box-sizing: border-box;
+  touch-action: pan-y;
+}
+
+.term-pane {
+  width: 100%;
+  height: 100%;
+  display: none;
+}
+
+.term-pane.on {
+  display: block;
+}
+
+.term-pane .xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.term-pane .xterm-viewport {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+#keys {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 38px);
+  grid-auto-columns: calc((100% - 30px) / 7);
+  gap: 5px;
+  padding: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--bar);
+  border-top: 1px solid var(--dim);
+  scrollbar-width: none;
+  box-sizing: border-box;
+}
+
+#keys::-webkit-scrollbar {
+  display: none;
+}
+
+#keys button {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(127, 122, 176, 0.45);
+  border-radius: 6px;
+  padding: 0 2px;
+  min-width: 0;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#keys button:active {
+  background: var(--ac);
+  color: var(--bg);
+  border-color: var(--ac);
+}
+
+#keys button.mod-on {
+  background: var(--ac2);
+  color: var(--bg);
+  border-color: var(--ac2);
+}
+
+#keys button.mod-lock {
+  background: var(--ac);
+  color: var(--bg);
+  border-color: var(--ac);
+}
+
+#keys button:focus-visible,
+#btn-test:focus-visible,
+#gear:focus-visible,
+#tabs button:focus-visible {
+  outline: 2px solid var(--ac2);
+  outline-offset: 1px;
+}
+
+#set {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.58);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+#set[hidden] {
+  display: none;
+}
+
+#set .card {
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  background: var(--bar);
+  color: var(--fg);
+  border-top: 2px solid var(--ac);
+  border-radius: 14px 14px 0 0;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  max-height: 90%;
+  overflow: auto;
+}
+
+#set label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+#set input[type="text"],
+#set select {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  font-size: 15px;
+  width: 55%;
+  box-sizing: border-box;
+}
+
+#set input[type="range"] {
+  width: 50%;
+  accent-color: var(--ac);
+}
+
+#set input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--ac);
+}
+
+#set .btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+#set .btns button {
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  padding: 10px 14px;
+  min-height: 44px;
+}
+
+#set #s-close {
+  background: var(--ac);
+  color: var(--bg);
+  border-color: var(--ac);
+  font-weight: 700;
+}
+
+#plug {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+}
+
+#plug[hidden] {
+  display: none;
+}
+
+#plug .top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bar);
+  border-bottom: 2px solid var(--ac);
+  flex: none;
+}
+
+#plug .top button {
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-height: 44px;
+}
+
+#plug .top input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 15px;
+}
+
+#plug .cats {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  flex: none;
+  scrollbar-width: none;
+}
+
+#plug .cats::-webkit-scrollbar {
+  display: none;
+}
+
+#plug .cats button {
+  flex: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--dim);
+  border-radius: 99px;
+  padding: 6px 14px;
+  min-height: 36px;
+}
+
+#plug .cats button.on {
+  background: var(--ac);
+  color: var(--bg);
+  border-color: var(--ac);
+  font-weight: 700;
+}
+
+#plug .list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 12px 16px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+#plug .it {
+  text-align: left;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bar);
+  border: 1px solid var(--dim);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 3px;
+}
+
+#plug .it:active {
+  border-color: var(--ac);
+}
+
+#plug .it b {
+  color: var(--ac);
+}
+
+#plug .it small {
+  color: var(--dim);
+}
+
+#plug .it code {
+  color: var(--ac2);
+  font-size: 12px;
+  word-break: break-all;
+}

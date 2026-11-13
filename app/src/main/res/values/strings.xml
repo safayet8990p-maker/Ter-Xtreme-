@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Ter Xtreme</string>
+    <string name="terminal_webview_description">Interactive Linux terminal viewport</string>
+    <string name="error_no_webview">Android System WebView is unavailable on this device.</string>
+    <string name="action_copy_logs">Copy logs</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_run_selftest">Run Self-Test</string>
+    <string name="action_back_terminal">Back to terminal</string>
+    <string name="notification_channel_name">Linux Terminal Sessions</string>
+    <string name="notification_channel_desc">Keeps active proot shell sessions alive in the background</string>
+    <string name="selftest_title">Linux Self-Test</string>
+    <string name="selftest_subtitle">Runs real commands inside proot Alpine Linux</string>
+    <string name="binary_debug_title">Native Binary Debug</string>
+    <string name="binary_debug_subtitle">ELF headers, size, and extractNativeLibs checks</string>
+    <string name="action_binary_debug">Native Binary Debug</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_copy_report">Copy report</string>
+    <string name="action_back">Back</string>
+</resources>

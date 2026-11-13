@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Ter Xtreme</title>
+  <link rel="stylesheet" href="https://appassets.androidplatform.net/assets/vendor/xterm.css">
+  <link rel="stylesheet" href="https://appassets.androidplatform.net/assets/style.css">
+</head>
+<body>
+  <div id="set" hidden>
+    <div class="card" role="dialog" aria-modal="true" aria-label="Settings">
+      <b>Settings</b>
+      <label>
+        <span>Theme</span>
+        <select id="s-theme">
+          <option value="auto">Auto</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="amber">Amber</option>
+          <option value="ice">Ice</option>
+        </select>
+      </label>
+      <label>
+        <span>Font size (<span id="s-font-val">14</span>px)</span>
+        <input id="s-font" type="range" min="10" max="24" value="14">
+      </label>
+      <label>
+        <span>Username</span>
+        <input id="s-user" type="text" autocapitalize="off" autocomplete="off">
+      </label>
+      <label>
+        <span>Hostname</span>
+        <input id="s-host" type="text" autocapitalize="off" autocomplete="off">
+      </label>
+      <label>
+        <span>Key bar</span>
+        <input id="s-keys" type="checkbox" checked>
+      </label>
+      <label>
+        <span>Save preferences</span>
+        <input id="s-save" type="checkbox" checked>
+      </label>
+      <div class="btns">
+        <button id="s-bindbg" type="button">Binary Debug</button>
+        <button id="s-test" type="button">Self-Test</button>
+        <button id="s-plug" type="button">Plugins</button>
+        <button id="s-wipe" type="button">Reset UI</button>
+        <button id="s-close" type="button">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="plug" class="ov" hidden>
+    <div class="top">
+      <button id="p-back" type="button">‹ Back</button>
+      <input id="p-search" type="search" placeholder="Search Alpine packages &amp; repos" aria-label="Search plugins">
+    </div>
+    <div id="p-cats" class="cats"></div>
+    <div id="p-list" class="list"></div>
+  </div>
+
+  <header>
+    <i class="dot" aria-hidden="true"></i>
+    <b>Ter Xtreme</b>
+    <span id="hp">alpine · starting</span>
+    <button id="btn-test" type="button" aria-label="Open Self-Test">Test</button>
+    <button id="gear" type="button" aria-label="Settings">⚙</button>
+  </header>
+
+  <nav id="tabs" aria-label="Terminal tabs"></nav>
+
+  <main id="term-wrap" aria-label="Terminal viewport"></main>
+
+  <div id="keys" role="toolbar" aria-label="Terminal extra keys"></div>
+
+  <script src="https://appassets.androidplatform.net/assets/vendor/xterm.js"></script>
+  <script src="https://appassets.androidplatform.net/assets/vendor/addon-fit.js"></script>
+  <script src="https://appassets.androidplatform.net/assets/app.js"></script>
+</body>
+</html>

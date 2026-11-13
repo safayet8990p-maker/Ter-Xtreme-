@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ter Xtreme</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap">
+<style>
+:root{--bg:#f4f2ff;--bar:#e6e2fb;--fg:#1b1740;--dim:#6d68a0;--ac:#d6195f;--ac2:#0a7fa8;--err:#c4161c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0a14;--bar:#15132a;--fg:#e8e6ff;--dim:#7f7ab0;--ac:#ff3d81;--ac2:#36e2ff;--err:#ff6b6b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b0a14;--bar:#15132a;--fg:#e8e6ff;--dim:#7f7ab0;--ac:#ff3d81;--ac2:#36e2ff;--err:#ff6b6b;color-scheme:dark}
+:root[data-theme="amber"]{--bg:#120c02;--bar:#201505;--fg:#ffd58a;--dim:#9a7a3c;--ac:#ffb000;--ac2:#ff7a1a;--err:#ff5a4d;color-scheme:dark}
+:root[data-theme="ice"]{--bg:#06141c;--bar:#0b2430;--fg:#d6f4ff;--dim:#5f93a8;--ac:#5ee6ff;--ac2:#a78bfa;--err:#ff7a8a;color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 "Space Mono",ui-monospace,Menlo,Consolas,monospace;display:flex;flex-direction:column;overflow:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bar);z-index:10}
+header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bar);border-bottom:2px solid var(--ac)}
+header b{font-size:15px;letter-spacing:.5px;color:var(--ac)}
+header span{color:var(--dim);font-size:12px;margin-left:auto}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ac)}
+#out{flex:1;overflow-y:auto;padding:10px 12px;white-space:pre-wrap;word-break:break-word;-webkit-overflow-scrolling:touch}
+#out div{min-height:1.5em}
+.p{color:var(--ac)}.u{color:var(--ac2)}.e{color:var(--err)}.d{color:var(--dim)}.dir{color:var(--ac2);font-weight:700}
+#keys{display:flex;gap:6px;padding:6px 8px;overflow-x:auto;background:var(--bar)}
+#keys button{flex:none;font:inherit;font-size:13px;color:var(--fg);background:transparent;border:1px solid var(--dim);border-radius:6px;padding:6px 12px;min-width:40px}
+#keys button:active{background:var(--ac);color:var(--bg);border-color:var(--ac)}
+#row{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bar);border-top:1px solid var(--dim)}
+#ps{color:var(--ac);white-space:nowrap}
+#in{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--fg);font:inherit;font-size:16px;caret-color:var(--ac)}
+#keys button:focus-visible,#in:focus-visible{outline:2px solid var(--ac2)}
+#tabs{display:flex;gap:4px;padding:6px 8px 0;background:var(--bar);overflow-x:auto}
+#tabs button{flex:none;font:inherit;font-size:12px;color:var(--dim);background:transparent;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;padding:6px 10px;display:flex;gap:8px;align-items:center}
+#tabs button.on{color:var(--fg);background:var(--bg);border-color:var(--dim)}
+#tabs .x{opacity:.7;padding:0 2px}
+#gear{font:inherit;font-size:17px;color:var(--fg);background:transparent;border:1px solid var(--dim);border-radius:6px;padding:0 8px}
+#set{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+#set[hidden]{display:none}
+#set .card{width:100%;max-width:480px;box-sizing:border-box;background:var(--bar);color:var(--fg);border-top:2px solid var(--ac);border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;max-height:85%;overflow:auto}
+#set label{display:flex;justify-content:space-between;align-items:center;gap:12px}
+#set input[type=text],#set select{background:var(--bg);color:var(--fg);border:1px solid var(--dim);border-radius:6px;padding:6px 8px;font:inherit;font-size:16px;width:55%;box-sizing:border-box}
+#set .btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+#plug{position:fixed;inset:0;z-index:30;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+#plug[hidden]{display:none}
+#plug .top{display:flex;gap:8px;align-items:center;padding:10px 12px;background:var(--bar);border-bottom:2px solid var(--ac)}
+#plug .top button{font:inherit;color:var(--fg);background:transparent;border:1px solid var(--dim);border-radius:6px;padding:6px 10px}
+#plug .top input{flex:1;min-width:0;background:var(--bg);color:var(--fg);border:1px solid var(--dim);border-radius:6px;padding:6px 8px;font:inherit;font-size:16px}
+#plug .cats{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;flex:none}
+#plug .cats button{flex:none;font:inherit;font-size:12px;color:var(--fg);background:transparent;border:1px solid var(--dim);border-radius:99px;padding:4px 12px}
+#plug .cats button.on{background:var(--ac);color:var(--bg);border-color:var(--ac)}
+#plug .list{flex:1;overflow-y:auto;padding:4px 12px calc(12px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;align-content:start}
+#plug .it{text-align:left;font:inherit;color:var(--fg);background:var(--bar);border:1px solid var(--dim);border-radius:10px;padding:10px 12px;display:grid;gap:2px}
+#plug .it:active{border-color:var(--ac)}
+#plug .it b{color:var(--ac)}
+#plug .it small{color:var(--dim)}
+#plug .it code{color:var(--ac2);font-size:12px}
+#set .btns button{font:inherit;color:var(--fg);background:transparent;border:1px solid var(--dim);border-radius:6px;padding:8px 14px}
+#set #s-close{background:var(--ac);color:var(--bg);border-color:var(--ac)}
+</style></head>
+<body>
+<div id='set' hidden><div class='card' role='dialog' aria-label='Settings'><b>Settings</b><label>Theme<select id='s-theme'><option value='auto'>Auto</option><option value='dark'>Dark</option><option value='light'>Light</option><option value='amber'>Amber</option><option value='ice'>Ice</option></select></label><label>Font size<input id='s-font' type='range' min='11' max='22'></label><label>Username<input id='s-user' type='text' autocapitalize='off'></label><label>Hostname<input id='s-host' type='text' autocapitalize='off'></label><label>Key bar<input id='s-keys' type='checkbox'></label><label>Save files and history<input id='s-save' type='checkbox'></label><div class='btns'><button id='s-plug' type='button'>Install plugins</button><button id='s-wipe' type='button'>Reset files</button><button id='s-close' type='button'>Done</button></div></div></div>
+<header><i class='dot'></i><b>Ter Xtreme</b><span id='hp'>v1.1</span><button id='gear' type='button' aria-label='Settings'>⚙</button></header><nav id='tabs' aria-label='Terminal tabs'></nav>
+<div id="out" role="log" aria-live="polite"></div>
+<div id="keys"></div>
+<div id="row"><span id="ps"></span><input id="in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Terminal input"></div>
+<script>
+const $=id=>document.getElementById(id),out=$("out"),inp=$("in"),ps=$("ps");
+const mk=(f)=>({f}),dr=(d={})=>({d});
+let root=dr({home:dr({user:dr({docs:dr({"notes.txt":mk("Ship Ter Xtreme.\n")}),"readme.txt":mk("Welcome to Ter Xtreme.\nType 'help' to see commands.\nTry: echo hello > hi.txt\n")})}),etc:dr({"motd":mk("Stay extreme.\n")})});
+let cwd=['home','user'],hist=[],hi=0,env={user:'user',host:'xtreme'},S={theme:'auto',font:14,keys:true,save:true},tabs=[],cur=0,nid=1;
+try{const s=JSON.parse(localStorage.getItem('terx')||'null');if(s){if(s.S)S={...S,...s.S};if(s.env)env=s.env;if(s.root)root=s.root;hist=s.hist||[];hi=hist.length}}catch(e){}
+const save=()=>{try{localStorage.setItem('terx',JSON.stringify({S,env,root:S.save?root:undefined,hist:S.save?hist.slice(-100):[]}))}catch(e){}};
+const esc=s=>s;
+function print(t,c){const d=document.createElement("div");if(c)d.className=c;d.textContent=t;out.appendChild(d);out.scrollTop=out.scrollHeight}
+function printHTML(parts){const d=document.createElement("div");parts.forEach(([t,c])=>{const s=document.createElement("span");s.textContent=t;if(c)s.className=c;d.appendChild(s)});out.appendChild(d);out.scrollTop=out.scrollHeight}
+const pwd=()=>"/"+cwd.join("/");
+const short=()=>pwd()==="/home/user"?"~":pwd();
+const setPs=()=>ps.textContent=env.user+"@"+env.host+":"+short()+"$";
+function parts(p){let a=p.startsWith("/")?[]:cwd.slice();if(p.startsWith("~"))a=["home","user"],p=p.slice(1);for(const s of p.split("/")){if(!s||s===".")continue;if(s==="..")a.pop();else a.push(s)}return a}
+function node(a){let n=root;for(const s of a){if(!n.d||!n.d[s])return null;n=n.d[s]}return n}
+function parent(p){const a=parts(p);const name=a.pop();return[node(a),name]}
+const C={
+help(){return"Commands:\n  ls [-a] cd pwd cat mkdir touch rm [-r] cp mv\n  echo [> file] tree grep find head wc\n  calc date whoami uname neofetch history\n  theme [dark|light|amber|ice] clear reset\n  ping matrix hack fortune\n  tail sort uniq rev seq cal env uuid rand base64 sha256 df ps uptime which\n  tab [new|close] exit settings set <key> <val>\n  pkg list|install|remove <name>  (apt, sudo work too)\nTab completes. Up/Down for history."},
+pwd:()=>pwd(),
+whoami:()=>env.user,
+date:()=>new Date().toString(),
+uname:()=>"TerXtreme 1.0 web-wasm-lite x86_64",
+echo:a=>a.join(" "),
+clear(){out.innerHTML="";return null},
+history:()=>hist.map((h,i)=>(i+1+"").padStart(4)+"  "+h).join("\n"),
+ls(a){const all=a.includes("-a"),p=a.find(x=>!x.startsWith("-"))||".";const n=node(parts(p));if(!n)return"ls: "+p+": no such file or directory";if(n.f!==undefined)return p;const k=Object.keys(n.d).sort();if(!k.length)return"";printHTML(k.map(x=>[x+(n.d[x].d?"/":"")+"  ",n.d[x].d?"dir":""]));return null},
+cd(a){const p=a[0]||"~";const n=node(parts(p));if(!n)return"cd: "+p+": no such directory";if(n.f!==undefined)return"cd: "+p+": not a directory";cwd=parts(p);setPs()},
+cat(a){if(!a.length)return"cat: missing file";return a.map(p=>{const n=node(parts(p));return!n?"cat: "+p+": no such file":n.d?"cat: "+p+": is a directory":n.f.replace(/\n$/,"")}).join("\n")},
+mkdir(a){if(!a.length)return"mkdir: missing name";for(const p of a){const[par,nm]=parent(p);if(!par||!par.d)return"mkdir: bad path "+p;if(par.d[nm])return"mkdir: "+p+": exists";par.d[nm]=dr()}},
+touch(a){for(const p of a){const[par,nm]=parent(p);if(!par||!par.d)return"touch: bad path "+p;if(!par.d[nm])par.d[nm]=mk("")}},
+rm(a){const r=a.includes("-r");for(const p of a.filter(x=>!x.startsWith("-"))){const[par,nm]=parent(p);if(!par||!par.d||!par.d[nm])return"rm: "+p+": no such file";if(par.d[nm].d&&!r)return"rm: "+p+": is a directory (use -r)";delete par.d[nm]}},
+cp(a){const n=node(parts(a[0]||""));if(!n||n.d)return"cp: need a source file";const[par,nm]=parent(a[1]||"");if(!par||!par.d)return"cp: bad destination";par.d[nm]=mk(n.f)},
+mv(a){const n=node(parts(a[0]||""));if(!n)return"mv: no such file";const[par,nm]=parent(a[1]||"");if(!par||!par.d)return"mv: bad destination";par.d[nm]=n;const[op,on]=parent(a[0]);delete op.d[on]},
+tree(a){const n=node(parts(a[0]||"."));if(!n||!n.d)return"tree: not a directory";const L=[];(function w(n,pre){const k=Object.keys(n.d).sort();k.forEach((x,i)=>{const last=i===k.length-1;L.push(pre+(last?"└── ":"├── ")+x+(n.d[x].d?"/":""));if(n.d[x].d)w(n.d[x],pre+(last?"    ":"│   "))})})(n,"");return(a[0]||".")+"\n"+L.join("\n")},
+grep(a){const[pat,p]=a;if(!pat||!p)return"usage: grep <text> <file>";const n=node(parts(p));if(!n||n.d)return"grep: "+p+": no such file";return n.f.split("\n").filter(l=>l.includes(pat)).join("\n")},
+find(a){const q=a[0]||"";const L=[];(function w(n,path){for(const k in n.d){const pp=path+"/"+k;if(k.includes(q))L.push(pp);if(n.d[k].d)w(n.d[k],pp)}})(root,"");return L.join("\n")||"nothing found"},
+head(a){const n=node(parts(a[0]||""));return!n||n.d?"head: no such file":n.f.split("\n").slice(0,5).join("\n")},
+wc(a){const n=node(parts(a[0]||""));if(!n||n.d)return"wc: no such file";const t=n.f;return`${t.split("\n").length-1} lines  ${t.split(/\s+/).filter(Boolean).length} words  ${t.length} chars`},
+calc(a){const e=a.join(" ");if(!/^[\d+\-*/%.() ]+$/.test(e))return"calc: numbers and + - * / % ( ) only";try{return String(Function('"use strict";return('+e+')')())}catch(x){return"calc: invalid expression"}},
+theme(a){const t=a[0];if(!['auto','dark','light','amber','ice'].includes(t))return'usage: theme auto|dark|light|amber|ice';S.theme=t;applyS();save();return'theme: '+t},
+neofetch(){printHTML([["  ▀█▀ ▀▄▀  ","p"],[env.user+"@"+env.host,"u"]]);printHTML([["   █  ▄▀▄  ","p"],["OS: Ter Xtreme 1.0","" ]]);printHTML([["          ","p"],["Shell: xsh","" ]]);printHTML([["          ","p"],["Cwd: "+pwd(),"" ]]);printHTML([["          ","p"],["Uptime: "+Math.round(performance.now()/1000)+"s","" ]]);return null},
+reset(){root=dr({home:dr({user:dr({"readme.txt":mk("Fresh start.\n")})})});cwd=["home","user"];hist=[];try{localStorage.removeItem("terx")}catch(e){}setPs();return"Reset to factory state."},
+settings(){openS();return null},
+async pkg(a){const op=a[0],n=a.slice(1);if(op==='list')return Object.keys(P).map(k=>(S.inst.includes(k)?'[x] ':'[ ] ')+k+'  '+P[k].d).join('\n');if(op==='update'||op==='upgrade')return'All packages are up to date.';if(op==='install'||op==='add'){if(!n.length)return'usage: pkg install <name>';for(let k of n){if(k==='nodejs')k='node';if(!P[k]){print('E: unable to locate package '+k+' (try: pkg list)','e');continue}if(S.inst.includes(k)){print(k+' is already installed','d');continue}for(const s of['Reading package lists','Downloading '+k,'Unpacking '+k,'Setting up '+k]){print(s+'...','d');await new Promise(r=>setTimeout(r,300))}S.inst.push(k);Object.assign(C,P[k].c);save();print('Installed '+k+'. Run: '+Object.keys(P[k].c)[0],'u')}return null}if(op==='remove'||op==='rm'){for(const k of n){if(!S.inst.includes(k)){print(k+' is not installed','e');continue}S.inst=S.inst.filter(x=>x!==k);for(const c in P[k].c)delete C[c];save();print('Removed '+k,'d')}return null}return'usage: pkg list|install|remove <name>'},
+apt(a){return C.pkg(a.filter(x=>x[0]!=='-'))},
+sudo(a){const c=a.shift();return C[c]?C[c](a):c+': command not found'},
+set(a){const k=a[0],v=a[1];if(k==='user'&&v)env.user=v;else if(k==='host'&&v)env.host=v;else if(k==='font'&&+v>=10&&+v<=24)S.font=+v;else if(k==='keys')S.keys=v!=='off';else return'usage: set user|host|font|keys <value>';applyS();save();return'ok'},
+tab(a){if(a[0]==='close')closeTab(cur);else newTab();return null},
+exit(){if(tabs.length<2)return'exit: last tab (use tab to open another)';closeTab(cur);return null},
+tail(a){const n=node(parts(a[0]||''));return!n||n.d?'tail: no such file':n.f.trimEnd().split('\n').slice(-5).join('\n')},
+sort(a){const n=node(parts(a[0]||''));return!n||n.d?'sort: no such file':n.f.trimEnd().split('\n').sort().join('\n')},
+uniq(a){const n=node(parts(a[0]||''));return!n||n.d?'uniq: no such file':n.f.trimEnd().split('\n').filter((l,i,x)=>l!==x[i-1]).join('\n')},
+rev:a=>a.join(' ').split('').reverse().join(''),
+seq(a){const s=a.length>1?+a[0]:1,e=+a[a.length-1];if(isNaN(e)||e-s>999)return'usage: seq [start] end';const r=[];for(let i=s;i<=e;i++)r.push(i);return r.join('\n')},
+uptime:()=>'up '+Math.round(performance.now()/1000)+'s, 1 user',
+env:()=>'USER='+env.user+'\nHOST='+env.host+'\nPWD='+pwd()+'\nSHELL=/bin/xsh',
+uuid:()=>crypto.randomUUID(),
+rand(a){return String(Math.floor(Math.random()*(+a[0]||100))+1)},
+base64(a){try{return btoa(a.join(' '))}catch(e){return'base64: ascii only'}},
+async sha256(a){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(a.join(' ')));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return'sha256: needs a secure (https) page'}},
+cal(){const d=new Date(),y=d.getFullYear(),m=d.getMonth(),f=new Date(y,m,1).getDay(),n=new Date(y,m+1,0).getDate();let s=d.toLocaleString('default',{month:'long'})+' '+y+'\nSu Mo Tu We Th Fr Sa\n'+'   '.repeat(f);for(let i=1;i<=n;i++)s+=String(i).padStart(2)+((i+f)%7===0?'\n':' ');return s},
+df:()=>'Filesystem  Used\nxvfs        '+JSON.stringify(root).length+' bytes',
+ps:()=>'PID  CMD\n  1  xsh\n 42  terxtreme\n 77  ps',
+which:a=>C[a[0]]?'/bin/'+a[0]:(a[0]||'which')+': not found',
+fortune:()=>['Ship it.','Small steps, big terminal.','rm -rf excuses','Tab is your friend.'][Math.random()*4|0],
+async ping(a){const h=a[0]||"localhost";print("PING "+h+" (simulated)");for(let i=1;i<=4;i++){await new Promise(r=>setTimeout(r,450));print("64 bytes from "+h+": seq="+i+" time="+(8+Math.random()*30).toFixed(1)+" ms")}return"4 packets transmitted, 4 received, 0% loss"},
+async matrix(){const ch="01ｱｲｳｴｵｶｷｸ{}<>/\\";for(let i=0;i<14;i++){let s="";for(let j=0;j<Math.min(40,Math.floor(innerWidth/9));j++)s+=Math.random()<.5?ch[Math.random()*ch.length|0]:" ";print(s,"p");await new Promise(r=>setTimeout(r,90))}return null},
+async hack(){for(const l of["Scanning ports...","Port 22 open","Bypassing firewall...","Injecting payload...","Access granted (just kidding, it's a demo)"]){print(l,"u");await new Promise(r=>setTimeout(r,500))}return null}
+};
+async function run(line){
+ let m=line.match(/^(.*?)\s*(>>|>)\s*(\S+)\s*$/),redir=null;
+ if(m){line=m[1];redir=[m[2],m[3]]}
+ const a=line.trim().split(/\s+/).filter(Boolean);if(!a.length)return;
+ const cmd=a.shift(),args=a.map(x=>x.replace(/^["']|["']$/g,""));
+ if(cmd==="echo"&&m)args.length=0,args.push(...line.trim().split(/\s+/).slice(1).join(" ").replace(/^["']|["']$/g,"").split(" "));
+ if(!C[cmd]){const k=cmd==='nodejs'?'node':cmd;print(cmd+': command not found.'+(P[k]?' Install it: pkg install '+k:' Type help.'),'e');return}
+ let r;try{r=await C[cmd](args)}catch(x){r="error: "+x.message}
+ if(r==null||r==="")return;
+ if(redir){const[par,nm]=parent(redir[1]);if(!par||!par.d)return print("redirect: bad path","e");const old=par.d[nm]&&par.d[nm].f!==undefined?par.d[nm].f:"";par.d[nm]=mk((redir[0]===">>"?old:"")+r+"\n");return}
+ print(r,/^(\w+: |.*: command not found)/.test(r)&&/no such|missing|bad|usage|invalid|exists|not a|need|only/.test(r)?"e":"");
+}
+inp.addEventListener("keydown",async e=>{
+ if(e.key==="Enter"){const l=inp.value;inp.value="";printHTML([[ps.textContent+" ","p"],[l,""]]);if(l.trim()){hist.push(l);hi=hist.length}inp.disabled=true;await run(l);inp.disabled=false;save();inp.focus();out.scrollTop=out.scrollHeight}
+ else if(e.key==="ArrowUp"){e.preventDefault();if(hi>0)inp.value=hist[--hi]}
+ else if(e.key==="ArrowDown"){e.preventDefault();inp.value=++hi<hist.length?hist[hi]:(hi=hist.length,"")}
+ else if(e.key==="Tab"){e.preventDefault();tab()}
+ else if(e.ctrlKey&&e.key==="c"){e.preventDefault();ctrlc()}
+ else if(e.ctrlKey&&e.key==="l"){e.preventDefault();out.innerHTML=""}
+});
+function ctrlc(){printHTML([[ps.textContent+" ","p"],[inp.value+"^C","d"]]);inp.value=""}
+function tab(){
+ const v=inp.value,sp=v.split(/\s+/);const last=sp[sp.length-1];let c=[];
+ if(sp.length===1)c=Object.keys(C).filter(k=>k.startsWith(last));
+ else{const i=last.lastIndexOf("/"),dp=i>=0?last.slice(0,i+1):"",base=last.slice(i+1);const n=node(parts(dp||"."));if(n&&n.d)c=Object.keys(n.d).filter(k=>k.startsWith(base)).map(k=>dp+k+(n.d[k].d?"/":""))}
+ if(c.length===1){sp[sp.length-1]=c[0];inp.value=sp.join(" ")+(c[0].endsWith("/")?"":" ")}
+ else if(c.length>1){print(c.join("  "),"d");let p=c[0];for(const x of c)while(!x.startsWith(p))p=p.slice(0,-1);sp[sp.length-1]=p;inp.value=sp.join(" ")}
+}
+const K=[["Tab",tab],["Ctrl+C",ctrlc],["↑",()=>inp.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowUp"}))],["↓",()=>inp.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowDown"}))],["~",()=>ins("~")],["/",()=>ins("/")],["-",()=>ins("-")],["|",()=>ins("|")],[">",()=>ins(">")]];
+function ins(t){inp.value+=t;inp.focus()}
+K.forEach(([l,f])=>{const b=document.createElement("button");b.textContent=l;b.type="button";b.onmousedown=e=>e.preventDefault();b.onclick=()=>{f();inp.focus()};$("keys").appendChild(b)});
+document.addEventListener('click',e=>{if(!getSelection().toString()&&!e.target.closest('#set,.ov'))inp.focus()});
+setPs();
+function banner(){print('Ter Xtreme 1.1 — a working terminal in your browser','p');print('Type help to start. Files you create are saved on this device.','d')}
+function sync(){const t=tabs[cur];t.cwd=cwd;t.hist=hist;t.hi=hi;t.html=out.innerHTML}
+function load(){const t=tabs[cur];cwd=t.cwd;hist=t.hist;hi=t.hi;out.innerHTML=t.html;setPs();drawTabs();out.scrollTop=out.scrollHeight;inp.focus()}
+function sw(i){sync();cur=i;load()}
+function newTab(){sync();tabs.push({n:nid++,cwd:['home','user'],hist:[],hi:0,html:''});cur=tabs.length-1;load();banner()}
+function closeTab(i){if(tabs.length<2)return;sync();tabs.splice(i,1);if(cur>i||(cur===i&&i>0))cur--;load()}
+function drawTabs(){const n=$('tabs');n.innerHTML='';tabs.forEach((t,i)=>{const b=document.createElement('button');b.type='button';b.className=i===cur?'on':'';b.textContent='term '+t.n;if(tabs.length>1){const x=document.createElement('span');x.className='x';x.textContent='×';x.onclick=e=>{e.stopPropagation();closeTab(i)};b.appendChild(x)}b.onclick=()=>sw(i);n.appendChild(b)});const p=document.createElement('button');p.type='button';p.textContent='+';p.setAttribute('aria-label','New tab');p.onclick=newTab;n.appendChild(p)}
+function applyS(){const r=document.documentElement;if(S.theme==='auto')delete r.dataset.theme;else r.dataset.theme=S.theme;document.body.style.fontSize=S.font+'px';$('keys').style.display=S.keys?'flex':'none';setPs()}
+function openS(){$('s-theme').value=S.theme;$('s-font').value=S.font;$('s-user').value=env.user;$('s-host').value=env.host;$('s-keys').checked=S.keys;$('s-save').checked=S.save;$('set').hidden=false}
+$('gear').onclick=openS;
+$('s-close').onclick=()=>{$('set').hidden=true;inp.focus()};
+$('set').addEventListener('input',()=>{S.theme=$('s-theme').value;S.font=+$('s-font').value;S.keys=$('s-keys').checked;S.save=$('s-save').checked;env.user=$('s-user').value.trim()||'user';env.host=$('s-host').value.trim()||'xtreme';applyS();save()});
+$('s-wipe').onclick=()=>{tabs.forEach(t=>t.cwd=['home','user']);print(C.reset(),'d');$('set').hidden=true};
+const BS=String.fromCharCode(92);
+const P={
+node:{d:'JavaScript runtime: node -e <code> | node <file>',c:{node(a){let code;if(a[0]==='-e')code=a.slice(1).join(' ');else{const n=node(parts(a[0]||''));if(!n||n.d)return'usage: node -e <code> | node <file>';code=n.f}const L=[];const f=(...x)=>L.push(x.map(v=>typeof v==='object'?JSON.stringify(v):String(v)).join(' '));try{Function('console',code)({log:f,error:f,info:f})}catch(e){L.push('Error: '+e.message)}return L.join('\n')}}},
+cowsay:{d:'ASCII cow that talks',c:{cowsay(a){const t=a.join(' ')||'moo',b='-'.repeat(t.length+2);return' '+b+'\n< '+t+' >\n '+b+'\n   '+BS+'   ^__^\n    '+BS+'  (oo)'+BS+'_______\n       (__)'+BS+'       )'+BS+'/'+BS+'\n           ||----w |\n           ||     ||'}}},
+bc:{d:'calculator: sqrt sin cos log pow pi ^',c:{bc(a){let e=a.join(' ').replace(/\^/g,'**').replace(/\b(sqrt|sin|cos|tan|log|abs|pow|floor|ceil|round|min|max)\b/g,'Math.$1').replace(/\bpi\b/gi,'Math.PI');if(!/^[\d+\-*/%.(), ]*$/.test(e.replace(/Math\.(sqrt|sin|cos|tan|log|abs|pow|floor|ceil|round|min|max|PI)/g,'')))return'bc: invalid expression';try{return String(Function('return('+e+')')())}catch(x){return'bc: invalid expression'}}}},
+nano:{d:'text editor (opens an editor sheet)',c:{nano(a){if(!a[0])return'usage: nano <file>';const[par,nm]=parent(a[0]);if(!par||!par.d)return'nano: bad path';if(par.d[nm]&&par.d[nm].d)return'nano: is a directory';const w=document.createElement('div');w.className='ov';w.style.cssText='position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';const c=document.createElement('div');c.style.cssText='width:100%;max-width:480px;box-sizing:border-box;background:var(--bar);color:var(--fg);border-top:2px solid var(--ac);border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:12px';const h=document.createElement('b');h.textContent='nano '+a[0];const t=document.createElement('textarea');t.value=par.d[nm]?par.d[nm].f:'';t.rows=12;t.style.cssText='background:var(--bg);color:var(--fg);border:1px solid var(--dim);border-radius:6px;padding:8px;font:inherit;font-size:16px;width:100%;box-sizing:border-box';const bt=document.createElement('div');bt.style.cssText='display:flex;gap:8px;justify-content:flex-end';const x=document.createElement('button'),s=document.createElement('button');x.textContent='Cancel';s.textContent='Save';x.type=s.type='button';x.style.cssText='font:inherit;color:var(--fg);background:transparent;border:1px solid var(--dim);border-radius:6px;padding:8px 14px';s.style.cssText='font:inherit;color:var(--bg);background:var(--ac);border:1px solid var(--ac);border-radius:6px;padding:8px 14px';x.onclick=()=>{w.remove();inp.focus()};s.onclick=()=>{par.d[nm]=mk(t.value);save();w.remove();inp.focus()};bt.append(x,s);c.append(h,t,bt);w.append(c);document.body.append(w);setTimeout(()=>t.focus(),60);return null}}}
+};
+const CAT=[
+['fzf','junegunn/fzf','Fuzzy finder for files, history and more','Shell'],
+['zoxide','ajeetdsouza/zoxide','Smarter cd that learns your folders','Shell'],
+['starship','starship/starship','Fast, custom prompt for any shell','Shell'],
+['tmux','tmux/tmux','Terminal multiplexer: many panes in one','Shell'],
+['zsh-autosuggestions','zsh-users/zsh-autosuggestions','Fish-like suggestions for zsh','Shell'],
+['ohmyzsh','ohmyzsh/ohmyzsh','Plugins and themes for zsh','Shell'],
+['fish','fish-shell/fish-shell','Friendly interactive shell','Shell'],
+['nushell','nushell/nushell','Shell that treats data as tables','Shell','nu'],
+['atuin','atuinsh/atuin','Searchable shell history','Shell'],
+['thefuck','nvbn/thefuck','Fixes your previous command','Shell'],
+['direnv','direnv/direnv','Per-folder environment variables','Shell'],
+['ripgrep','BurntSushi/ripgrep','Very fast text search','Files','rg'],
+['fd','sharkdp/fd','Simple, fast alternative to find','Files'],
+['bat','sharkdp/bat','cat with syntax highlighting','Files'],
+['eza','eza-community/eza','Modern ls replacement','Files'],
+['yazi','sxyazi/yazi','Fast terminal file manager','Files'],
+['ranger','ranger/ranger','File manager with vim keys','Files'],
+['nnn','jarun/nnn','Tiny, quick file browser','Files'],
+['gdu','dundee/gdu','Disk usage analyzer','Files'],
+['dust','bootandy/dust','Visual du replacement','Files'],
+['duf','muesli/duf','Friendly df replacement','Files'],
+['jq','jqlang/jq','Query and edit JSON','Files'],
+['git','git/git','Version control','Dev'],
+['gh','cli/cli','GitHub from the command line','Dev'],
+['lazygit','jesseduffield/lazygit','Git UI in the terminal','Dev'],
+['delta','dandavison/delta','Readable git diffs','Dev'],
+['hyperfine','sharkdp/hyperfine','Benchmark any command','Dev'],
+['node','nodejs/node','JavaScript runtime','Dev'],
+['nvm','nvm-sh/nvm','Switch Node versions','Dev'],
+['pyenv','pyenv/pyenv','Switch Python versions','Dev'],
+['rustup','rust-lang/rustup','Rust toolchain installer','Dev'],
+['asdf','asdf-vm/asdf','One version manager for many tools','Dev'],
+['neovim','neovim/neovim','Modern vim','Editors','nvim'],
+['vim','vim/vim','Classic modal editor','Editors'],
+['micro','zyedidia/micro','Easy terminal editor','Editors'],
+['helix','helix-editor/helix','Modal editor with built-in tooling','Editors','hx'],
+['nano','built-in','Text editor sheet (works here)','Editors'],
+['htop','htop-dev/htop','Interactive process viewer','System'],
+['btop','aristocratos/btop','Resource monitor','System'],
+['bottom','ClementTsang/bottom','Graphical system monitor','System','btm'],
+['fastfetch','fastfetch-cli/fastfetch','Fast system info','System'],
+['bc','built-in','Calculator with math functions (works here)','System'],
+['curl','curl/curl','Transfer data with URLs','Network'],
+['httpie','httpie/cli','Friendly HTTP client','Network','http'],
+['nmap','nmap/nmap','Network scanner','Network'],
+['yt-dlp','yt-dlp/yt-dlp','Download online video and audio','Network'],
+['tldr','tldr-pages/tldr','Short, practical command help','Docs'],
+['cheat','cheat/cheat','Cheatsheets for commands','Docs'],
+['glow','charmbracelet/glow','Render Markdown in the terminal','Docs'],
+['gum','charmbracelet/gum','Pretty prompts for shell scripts','Docs'],
+['cowsay','cowsay-org/cowsay','Talking ASCII cow (works here)','Fun'],
+['cmatrix','abishekvashok/cmatrix','Falling code effect','Fun'],
+['lolcat','busyloop/lolcat','Rainbow text','Fun'],
+['figlet','cmatsuoka/figlet','Big ASCII banners','Fun']
+];
+const ready=new Set(Object.keys(P));
+CAT.forEach(([k,r,d,g,b])=>{if(!P[k]){const n=b||k;P[k]={d,c:{[n]:()=>n+': installed from github.com/'+r+' (demo stub). Running the real program needs a Linux backend.'}}}});
+let pg=null,pq='',pc='All';
+function plug(){if(!pg){pg=document.createElement('div');pg.id='plug';pg.className='ov';const top=document.createElement('div');top.className='top';const bk=document.createElement('button');bk.type='button';bk.textContent='‹ Back';bk.onclick=()=>{pg.hidden=true;$('set').hidden=false};const q=document.createElement('input');q.placeholder='Search plugins';q.setAttribute('aria-label','Search plugins');q.oninput=()=>{pq=q.value.toLowerCase();drawPlug()};top.append(bk,q);const cats=document.createElement('div');cats.className='cats';const list=document.createElement('div');list.className='list';pg.append(top,cats,list);pg.cats=cats;pg.list=list;document.body.append(pg)}pg.hidden=false;$('set').hidden=true;drawPlug()}
+function drawPlug(){const G=['All',...new Set(CAT.map(x=>x[3]))];pg.cats.innerHTML='';G.forEach(g=>{const b=document.createElement('button');b.type='button';b.textContent=g;b.className=g===pc?'on':'';b.onclick=()=>{pc=g;drawPlug()};pg.cats.append(b)});pg.list.innerHTML='';CAT.filter(([k,r,d,g])=>(pc==='All'||g===pc)&&(k+' '+r+' '+d).toLowerCase().includes(pq)).forEach(([k,r,d])=>{const b=document.createElement('button');b.type='button';b.className='it';const t=document.createElement('b');t.textContent=k+(ready.has(k)?'  · runs here':S.inst.includes(k)?'  · installed':'');const s=document.createElement('small');s.textContent=d+(r==='built-in'?'':'  (github.com/'+r+')');const c=document.createElement('code');c.textContent='pkg install '+k;b.append(t,s,c);b.onclick=()=>{pg.hidden=true;inp.value='pkg install '+k;inp.focus()};pg.list.append(b)});if(!pg.list.children.length)pg.list.textContent='No plugin matches. Try another word.'}
+$('s-plug').onclick=plug;
+S.inst=S.inst||[];S.inst.forEach(k=>P[k]&&Object.assign(C,P[k].c));
+tabs=[{n:nid++,cwd,hist,hi,html:''}];
+banner();
+drawTabs();applyS();
+inp.focus();
+</script></body></html>
