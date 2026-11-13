@@ -9,6 +9,7 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 
 data class ElfBinaryReport(
   val name: String,
@@ -17,14 +18,17 @@ data class ElfBinaryReport(
   val canExecute: Boolean,
   val sizeBytes: Long,
   val sha256Prefix: String,
+  val hexHeader: String,
   val fileStyleSummary: String,
   val alignmentLabel: String,
+  val runtimeExecProbe: String,
 )
 
 data class NativeEnvironmentReport(
   val nativeLibraryDir: String,
   val extractNativeLibsFlag: Boolean,
   val supportedAbis: String,
+  val terPtyLoadStatus: String,
   val libraries: List<ElfBinaryReport>,
 ) {
   fun toClipboardText(appVersion: String): String =
@@ -35,6 +39,7 @@ data class NativeEnvironmentReport(
       appendLine("Supported ABIs: $supportedAbis")
       appendLine("nativeLibraryDir: $nativeLibraryDir")
       appendLine("FLAG_EXTRACT_NATIVE_LIBS: $extractNativeLibsFlag")
+      appendLine("System.loadLibrary(\"terpty\"): $terPtyLoadStatus")
       appendLine()
       libraries.forEach { lib ->
         appendLine("=== ${lib.name} ===")
@@ -43,8 +48,12 @@ data class NativeEnvironmentReport(
         if (lib.sha256Prefix.isNotBlank()) {
           appendLine("SHA-256 (prefix): ${lib.sha256Prefix}")
         }
+        if (lib.hexHeader.isNotBlank()) {
+          appendLine("ELF Hex[0..15]: ${lib.hexHeader}")
+        }
         appendLine("ELF / file info: ${lib.fileStyleSummary}")
         appendLine("Page alignment: ${lib.alignmentLabel}")
+        appendLine("Runtime.exec probe: ${lib.runtimeExecProbe}")
         appendLine()
       }
       appendLine("Licenses: libproot.so & libproot-loader.so = GPLv2+; libtalloc = LGPLv3+; libterpty.so = original project C JNI")
@@ -67,6 +76,14 @@ object NativeBinaryInspector {
     val extractFlag = (appInfo.flags and ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS) != 0
     val nativeDir = if (nativeDirPath == "(unavailable)") null else File(nativeDirPath)
 
+    val terPtyStatus =
+      try {
+        System.loadLibrary("terpty")
+        "OK (libterpty.so loaded via System.loadLibrary)"
+      } catch (t: Throwable) {
+        "FAIL (${t.javaClass.simpleName}: ${t.message})"
+      }
+
     val targets = listOf("libproot.so", "libproot-loader.so", "libterpty.so")
     val reports =
       targets.map { fileName ->
@@ -78,6 +95,7 @@ object NativeBinaryInspector {
       nativeLibraryDir = nativeDirPath,
       extractNativeLibsFlag = extractFlag,
       supportedAbis = Build.SUPPORTED_ABIS.joinToString(", ").ifBlank { "unknown" },
+      terPtyLoadStatus = terPtyStatus,
       libraries = reports,
     )
   }
@@ -91,15 +109,19 @@ object NativeBinaryInspector {
         canExecute = false,
         sizeBytes = 0L,
         sha256Prefix = "",
+        hexHeader = "",
         fileStyleSummary = "missing (not extracted to nativeLibraryDir)",
         alignmentLabel = "n/a",
+        runtimeExecProbe = "skipped (file does not exist)",
       )
     }
 
     val size = file.length()
     val exec = file.canExecute()
     val shaPrefix = computeSha256Prefix(file)
+    val hexHdr = readHexHeader(file)
     val elf = parseElf(file)
+    val execProbe = runExecProbe(file)
 
     return ElfBinaryReport(
       name = file.name,
@@ -108,10 +130,52 @@ object NativeBinaryInspector {
       canExecute = exec,
       sizeBytes = size,
       sha256Prefix = shaPrefix,
+      hexHeader = hexHdr,
       fileStyleSummary = elf.summary,
       alignmentLabel = elf.alignmentLabel,
+      runtimeExecProbe = execProbe,
     )
   }
+
+  private fun runExecProbe(file: File): String {
+    val candidates =
+      listOf(
+        arrayOf("readelf", "-h", file.absolutePath),
+        arrayOf("file", file.absolutePath),
+        arrayOf("/system/bin/ls", "-l", file.absolutePath),
+      )
+    for (cmd in candidates) {
+      try {
+        val proc = Runtime.getRuntime().exec(cmd)
+        val finished = proc.waitFor(2, TimeUnit.SECONDS)
+        if (!finished) {
+          proc.destroyForcibly()
+          continue
+        }
+        val stdout = proc.inputStream.bufferedReader().readText().trim()
+        val stderr = proc.errorStream.bufferedReader().readText().trim()
+        val combined = listOf(stdout, stderr).filter { it.isNotBlank() }.joinToString(" | ")
+        if (proc.exitValue() == 0 && combined.isNotBlank()) {
+          return "${cmd[0]}: ${combined.lines().take(3).joinToString(" / ")}"
+        }
+      } catch (_: Throwable) {
+        // Tool unavailable in Android PATH; try next probe
+      }
+    }
+    return "readelf/file not installed on Android PATH (verified via Kotlin ELF hex parser)"
+  }
+
+  private fun readHexHeader(file: File): String =
+    try {
+      RandomAccessFile(file, "r").use { raf ->
+        val len = minOf(16L, file.length()).toInt()
+        val bytes = ByteArray(len)
+        raf.readFully(bytes)
+        bytes.joinToString(" ") { "%02X".format(it) }
+      }
+    } catch (_: Throwable) {
+      ""
+    }
 
   internal data class ElfParseResult(
     val summary: String,

@@ -32,8 +32,16 @@ object NetSetup {
 
     val profileDir = File(etc, "profile.d").apply { mkdirs() }
     File(profileDir, "terxtreme.sh").writeText(
-      "export PS1='\\[\\e[1;35m\\]\\u@\\h\\[\\e[0m\\]:\\[\\e[1;36m\\]\\w\\[\\e[0m\\]\\$ '\n",
+      "export HISTFILE=/root/.ash_history\n" +
+        "export HISTSIZE=2000\n" +
+        "export PS1='\\[\\e[1;35m\\]root\\[\\e[0m\\]:\\[\\e[1;36m\\]\\w\\[\\e[0m\\]# '\n",
     )
+
+    val rootHome = File(rootfs, "root").apply { mkdirs() }
+    val storageLink = File(rootHome, "storage")
+    if (!storageLink.exists()) {
+      runCatching { Os.symlink("/storage/emulated/0", storageLink.absolutePath) }
+    }
 
     val localBin = File(rootfs, "usr/local/bin").apply { mkdirs() }
     val pkgScript = File(localBin, "pkg")

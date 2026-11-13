@@ -9,6 +9,7 @@ import android.util.Base64
 import android.webkit.JavascriptInterface
 import com.example.data.AppSettings
 import com.example.data.SettingsStore
+import com.example.env.StorageHelper
 import com.example.term.ProotBackend
 import com.example.terminal.DiagnosticLog
 import com.example.ui.TerminalAndroidWebView
@@ -26,6 +27,7 @@ class TermBridge(
   private val settingsStore: SettingsStore,
   private val onOpenSelfTest: () -> Unit,
   private val onOpenBinaryDebug: () -> Unit = {},
+  private val onRequestStorage: () -> Unit = {},
 ) {
   private val mainHandler = Handler(Looper.getMainLooper())
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -52,7 +54,7 @@ class TermBridge(
 
   @JavascriptInterface
   fun onReady() {
-    DiagnosticLog.log("TermBridge", "WebView xterm.js UI ready")
+    DiagnosticLog.log("TermBridge", "WebView xterm.js v2.0.1 UI ready")
   }
 
   @JavascriptInterface
@@ -95,7 +97,9 @@ class TermBridge(
   @JavascriptInterface
   fun loadSettings(): String =
     runBlocking {
-      settingsStore.getCurrent().toJsonString()
+      settingsStore.getCurrent().toJsonString(
+        storageGranted = StorageHelper.hasStorageAccess(context),
+      )
     }
 
   @JavascriptInterface
@@ -108,6 +112,20 @@ class TermBridge(
   }
 
   @JavascriptInterface
+  fun installThemePack(packId: String) {
+    scope.launch {
+      settingsStore.installThemePack(packId, activate = true)
+    }
+  }
+
+  @JavascriptInterface
+  fun markLinuxUpdateSeen() {
+    scope.launch {
+      settingsStore.markLinuxUpdateBannerSeen()
+    }
+  }
+
+  @JavascriptInterface
   fun resetSettings() {
     scope.launch {
       settingsStore.resetUiDefaults()
@@ -116,6 +134,7 @@ class TermBridge(
 
   @JavascriptInterface
   fun openSelfTest() {
+    scope.launch { settingsStore.markLinuxUpdateBannerSeen() }
     mainHandler.post { onOpenSelfTest() }
   }
 
@@ -123,6 +142,14 @@ class TermBridge(
   fun openBinaryDebug() {
     mainHandler.post { onOpenBinaryDebug() }
   }
+
+  @JavascriptInterface
+  fun requestStoragePermission() {
+    mainHandler.post { onRequestStorage() }
+  }
+
+  @JavascriptInterface
+  fun hasStoragePermission(): Boolean = StorageHelper.hasStorageAccess(context)
 
   @JavascriptInterface
   fun setTerminalInputMode(enabled: Boolean) {

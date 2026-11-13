@@ -1,6 +1,7 @@
 package com.example.env
 
 import android.content.Context
+import android.os.Environment
 import com.example.terminal.DiagnosticLog
 import java.io.File
 
@@ -62,15 +63,11 @@ object Launcher {
     context: Context,
     binaries: ProotCheckResult.Ready,
     noSeccomp: Boolean,
-    username: String,
-    hostname: String,
   ): ProotLaunchSpec =
     buildCommandSpec(
       context = context,
       binaries = binaries,
       noSeccomp = noSeccomp,
-      username = username,
-      hostname = hostname,
       guestCommand = listOf("/bin/sh", "-l"),
     )
 
@@ -84,8 +81,6 @@ object Launcher {
       context = context,
       binaries = binaries,
       noSeccomp = noSeccomp,
-      username = "root",
-      hostname = "alpine",
       guestCommand = listOf("/bin/sh", "-lc", commandLine),
     )
 
@@ -93,8 +88,6 @@ object Launcher {
     context: Context,
     binaries: ProotCheckResult.Ready,
     noSeccomp: Boolean,
-    username: String,
-    hostname: String,
     guestCommand: List<String>,
   ): ProotLaunchSpec {
     val rootfs = rootfsDir(context)
@@ -107,6 +100,32 @@ object Launcher {
     }
     File(rootfs, "root").mkdirs()
 
+    val primaryStorage =
+      runCatching { Environment.getExternalStorageDirectory() }.getOrNull()
+        ?: File("/storage/emulated/0")
+    val emulatedZero = File("/storage/emulated/0")
+    val appExtDir = context.getExternalFilesDir(null)
+
+    File(rootfs, "storage/emulated/0").mkdirs()
+    File(rootfs, "sdcard").mkdirs()
+
+    val bindArgs = mutableListOf<String>()
+    bindArgs.addAll(listOf("-b", "/dev", "-b", "/proc", "-b", "/sys"))
+
+    if (emulatedZero.exists()) {
+      bindArgs.addAll(listOf("-b", "/storage/emulated/0"))
+      bindArgs.addAll(listOf("-b", "/storage/emulated/0:/sdcard"))
+    } else if (primaryStorage.exists()) {
+      bindArgs.addAll(listOf("-b", "${primaryStorage.absolutePath}:/storage/emulated/0"))
+      bindArgs.addAll(listOf("-b", "${primaryStorage.absolutePath}:/sdcard"))
+    }
+
+    if (appExtDir != null) {
+      appExtDir.mkdirs()
+      File(rootfs, "mnt/app_storage").mkdirs()
+      bindArgs.addAll(listOf("-b", "${appExtDir.absolutePath}:/mnt/app_storage"))
+    }
+
     val argv =
       buildList {
         add(binaries.prootBinary.absolutePath)
@@ -115,12 +134,7 @@ object Launcher {
         add("-0")
         add("-r")
         add(rootfs.absolutePath)
-        add("-b")
-        add("/dev")
-        add("-b")
-        add("/proc")
-        add("-b")
-        add("/sys")
+        addAll(bindArgs)
         add("-w")
         add("/root")
         addAll(guestCommand)
@@ -134,8 +148,7 @@ object Launcher {
           add("PROOT_NO_SECCOMP=1")
         }
         add("HOME=/root")
-        add("USER=${username.ifBlank { "root" }}")
-        add("HOSTNAME=${hostname.ifBlank { "alpine" }}")
+        add("USER=root")
         add("TERM=xterm-256color")
         add("COLORTERM=truecolor")
         add("LANG=C.UTF-8")

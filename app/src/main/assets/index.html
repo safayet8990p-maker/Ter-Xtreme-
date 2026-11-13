@@ -10,15 +10,13 @@
 <body>
   <div id="set" hidden>
     <div class="card" role="dialog" aria-modal="true" aria-label="Settings">
-      <b>Settings</b>
+      <b>Settings · v2.0.1</b>
       <label>
         <span>Theme</span>
         <select id="s-theme">
-          <option value="auto">Auto</option>
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-          <option value="amber">Amber</option>
-          <option value="ice">Ice</option>
+          <option value="auto">Auto (Dark / Light)</option>
+          <option value="dark">Full Dark</option>
+          <option value="light">Full Light</option>
         </select>
       </label>
       <label>
@@ -26,25 +24,17 @@
         <input id="s-font" type="range" min="10" max="24" value="14">
       </label>
       <label>
-        <span>Username</span>
-        <input id="s-user" type="text" autocapitalize="off" autocomplete="off">
-      </label>
-      <label>
-        <span>Hostname</span>
-        <input id="s-host" type="text" autocapitalize="off" autocomplete="off">
-      </label>
-      <label>
         <span>Key bar</span>
         <input id="s-keys" type="checkbox" checked>
       </label>
       <label>
-        <span>Save preferences</span>
-        <input id="s-save" type="checkbox" checked>
+        <span>Storage (/storage/emulated/0)</span>
+        <button id="s-storage" type="button" class="inline-btn">Grant Access</button>
       </label>
       <div class="btns">
         <button id="s-bindbg" type="button">Binary Debug</button>
-        <button id="s-test" type="button">Self-Test</button>
-        <button id="s-plug" type="button">Plugins</button>
+        <button id="s-update" type="button">Linux Update</button>
+        <button id="s-plug" type="button">Plugins &amp; Themes</button>
         <button id="s-wipe" type="button">Reset UI</button>
         <button id="s-close" type="button">Done</button>
       </div>
@@ -54,23 +44,38 @@
   <div id="plug" class="ov" hidden>
     <div class="top">
       <button id="p-back" type="button">‹ Back</button>
-      <input id="p-search" type="search" placeholder="Search Alpine packages &amp; repos" aria-label="Search plugins">
+      <input id="p-search" type="search" placeholder="Search Theme Packs &amp; Alpine packages" aria-label="Search plugins and themes">
     </div>
     <div id="p-cats" class="cats"></div>
     <div id="p-list" class="list"></div>
   </div>
 
+  <div id="drawer-backdrop" hidden></div>
+  <aside id="tab-drawer" aria-label="Terminal tabs" hidden>
+    <div class="drawer-head">
+      <b>Sessions</b>
+      <button id="drawer-close" type="button" aria-label="Close drawer">×</button>
+    </div>
+    <div id="tabs" role="tablist"></div>
+    <button id="tab-add" type="button">+ New Tab</button>
+  </aside>
+
   <header>
     <i class="dot" aria-hidden="true"></i>
     <b>Ter Xtreme</b>
-    <span id="hp">alpine · starting</span>
-    <button id="btn-test" type="button" aria-label="Open Self-Test">Test</button>
+    <span id="hp">v2.0.1 · alpine</span>
+    <button id="btn-update" type="button" aria-label="Linux Update">Linux Update</button>
     <button id="gear" type="button" aria-label="Settings">⚙</button>
   </header>
 
-  <nav id="tabs" aria-label="Terminal tabs"></nav>
-
   <main id="term-wrap" aria-label="Terminal viewport"></main>
+
+  <div id="free-write" hidden>
+    <input id="fw-input" type="text" placeholder="Free writing bar (Gboard / voice / text)..." autocomplete="on" autocorrect="on" spellcheck="true" aria-label="Free writing input">
+    <button id="fw-send" type="button">Send</button>
+    <button id="fw-enter" type="button" aria-label="Send with Enter">↵</button>
+    <button id="fw-close" type="button" aria-label="Close free writing bar">×</button>
+  </div>
 
   <div id="keys" role="toolbar" aria-label="Terminal extra keys"></div>
 

@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -41,6 +42,7 @@ import com.example.env.Installer
 import com.example.env.Launcher
 import com.example.env.NetSetup
 import com.example.env.ProotCheckResult
+import com.example.env.StorageHelper
 import com.example.term.ProotBackend
 import com.example.ui.AppErrorKind
 import com.example.ui.AppErrorState
@@ -54,13 +56,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private sealed class AppScreenState {
-  data class Bootstrapping(val progress: InstallProgress) : AppScreenState()
+  data class Bootstrapping(
+    val progress: InstallProgress,
+    val awaitingConsent: Boolean = false,
+  ) : AppScreenState()
 
   data object Terminal : AppScreenState()
 
-  data object SelfTest : AppScreenState()
+  data object LinuxUpdate : AppScreenState()
 
-  data class BinaryDebug(val returnToError: AppErrorState? = null) : AppScreenState()
+  data class BinaryDebug(
+    val returnToError: AppErrorState? = null,
+    val returnToBootstrap: Boolean = false,
+  ) : AppScreenState()
 
   data class FatalError(val error: AppErrorState) : AppScreenState()
 }
@@ -73,6 +81,9 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
+    // Guarantee screenshots remain allowed across all screens
+    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+
     settingsStore = SettingsStore(applicationContext)
 
     enableEdgeToEdge(
@@ -84,11 +95,38 @@ class MainActivity : ComponentActivity() {
       TerXtremeTheme(darkTheme = true) {
         var screenState by remember {
           mutableStateOf<AppScreenState>(
-            AppScreenState.Bootstrapping(InstallProgress.CheckingEnvironment),
+            AppScreenState.Bootstrapping(InstallProgress.CheckingEnvironment, awaitingConsent = false),
           )
         }
         var retryToken by remember { mutableIntStateOf(0) }
+        var installTrigger by remember { mutableIntStateOf(0) }
+        var storageGranted by remember {
+          mutableStateOf(StorageHelper.hasStorageAccess(applicationContext))
+        }
         val bootstrapLogs = remember { mutableStateListOf<String>() }
+
+        val legacyStorageLauncher =
+          rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+          ) {
+            storageGranted = StorageHelper.hasStorageAccess(applicationContext)
+          }
+
+        val notifLauncher =
+          rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
+
+        val requestStorageAccess: () -> Unit = {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            StorageHelper.openAllFilesAccessSettings(this@MainActivity)
+          } else {
+            legacyStorageLauncher.launch(
+              arrayOf(
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+              ),
+            )
+          }
+        }
 
         val backendInstance = remember {
           ProotBackend(
@@ -113,15 +151,16 @@ class MainActivity : ComponentActivity() {
             context = applicationContext,
             backend = backendInstance,
             settingsStore = settingsStore,
-            onOpenSelfTest = { screenState = AppScreenState.SelfTest },
-            onOpenBinaryDebug = { screenState = AppScreenState.BinaryDebug(returnToError = null) },
+            onOpenSelfTest = { screenState = AppScreenState.LinuxUpdate },
+            onOpenBinaryDebug = {
+              screenState = AppScreenState.BinaryDebug(returnToError = null, returnToBootstrap = false)
+            },
+            onRequestStorage = requestStorageAccess,
           ).also { bridge = it }
         }
 
-        val notifLauncher =
-          rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
-
         LaunchedEffect(Unit) {
+          storageGranted = StorageHelper.hasStorageAccess(applicationContext)
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted =
               ContextCompat.checkSelfPermission(
@@ -134,9 +173,11 @@ class MainActivity : ComponentActivity() {
           }
         }
 
-        LaunchedEffect(retryToken) {
+        LaunchedEffect(retryToken, installTrigger) {
           bootstrapLogs.clear()
-          screenState = AppScreenState.Bootstrapping(InstallProgress.CheckingEnvironment)
+          storageGranted = StorageHelper.hasStorageAccess(applicationContext)
+          screenState =
+            AppScreenState.Bootstrapping(InstallProgress.CheckingEnvironment, awaitingConsent = false)
 
           val binResult = withContext(Dispatchers.IO) { Launcher.checkBinaries(applicationContext) }
           if (binResult is ProotCheckResult.MissingBinaries) {
@@ -159,11 +200,22 @@ class MainActivity : ComponentActivity() {
           val readyBins = binResult as ProotCheckResult.Ready
           val rootfsAlreadyInstalled =
             withContext(Dispatchers.IO) { Installer.isRootfsReady(applicationContext) }
+
+          // Never auto-download on app open when rootfs is missing; wait for user's explicit Install tap.
+          if (!rootfsAlreadyInstalled && installTrigger == 0) {
+            screenState =
+              AppScreenState.Bootstrapping(
+                progress = InstallProgress.CheckingEnvironment,
+                awaitingConsent = true,
+              )
+            return@LaunchedEffect
+          }
+
           if (!rootfsAlreadyInstalled) {
             val installFailure =
               withContext(Dispatchers.IO) {
                 Installer.installAlpine(applicationContext) { progress ->
-                  screenState = AppScreenState.Bootstrapping(progress)
+                  screenState = AppScreenState.Bootstrapping(progress, awaitingConsent = false)
                 }
               }
             if (installFailure != null) {
@@ -191,7 +243,8 @@ class MainActivity : ComponentActivity() {
           if (!prefs.firstBootDone) {
             screenState =
               AppScreenState.Bootstrapping(
-                InstallProgress.ConfiguringNetwork("Running initial apk update..."),
+                progress = InstallProgress.ConfiguringNetwork("Running initial apk update..."),
+                awaitingConsent = false,
               )
             val setupResult =
               withContext(Dispatchers.IO) {
@@ -202,7 +255,11 @@ class MainActivity : ComponentActivity() {
                   preferNoSeccomp = prefs.prootNoSeccomp,
                 ) { line ->
                   bootstrapLogs.add(line)
-                  screenState = AppScreenState.Bootstrapping(InstallProgress.ConfiguringNetwork(line))
+                  screenState =
+                    AppScreenState.Bootstrapping(
+                      progress = InstallProgress.ConfiguringNetwork(line),
+                      awaitingConsent = false,
+                    )
                 }
               }
             if (setupResult.isFailure) {
@@ -234,12 +291,18 @@ class MainActivity : ComponentActivity() {
         BackHandler(enabled = screenState is AppScreenState.Terminal) {
           bridgeInstance.handleBackPress { finish() }
         }
-        BackHandler(enabled = screenState is AppScreenState.SelfTest) {
+        BackHandler(enabled = screenState is AppScreenState.LinuxUpdate) {
           screenState = AppScreenState.Terminal
         }
         BackHandler(enabled = screenState is AppScreenState.BinaryDebug) {
-          val returnErr = (screenState as? AppScreenState.BinaryDebug)?.returnToError
-          screenState = if (returnErr != null) AppScreenState.FatalError(returnErr) else AppScreenState.Terminal
+          val dbg = screenState as? AppScreenState.BinaryDebug
+          screenState =
+            when {
+              dbg?.returnToError != null -> AppScreenState.FatalError(dbg.returnToError)
+              dbg?.returnToBootstrap == true ->
+                AppScreenState.Bootstrapping(InstallProgress.CheckingEnvironment, awaitingConsent = true)
+              else -> AppScreenState.Terminal
+            }
         }
 
         Scaffold(
@@ -256,7 +319,21 @@ class MainActivity : ComponentActivity() {
           ) {
             when (val state = screenState) {
               is AppScreenState.Bootstrapping ->
-                BootstrapScreen(progress = state.progress, logs = bootstrapLogs)
+                BootstrapScreen(
+                  progress = state.progress,
+                  awaitingInstallConsent = state.awaitingConsent,
+                  storageGranted = storageGranted,
+                  logs = bootstrapLogs,
+                  onStartInstall = { installTrigger++ },
+                  onRequestStorage = requestStorageAccess,
+                  onOpenBinaryDebug = {
+                    screenState =
+                      AppScreenState.BinaryDebug(
+                        returnToError = null,
+                        returnToBootstrap = state.awaitingConsent,
+                      )
+                  },
+                )
               is AppScreenState.FatalError ->
                 ErrorScreen(
                   error = state.error,
@@ -265,7 +342,7 @@ class MainActivity : ComponentActivity() {
                     screenState = AppScreenState.BinaryDebug(returnToError = state.error)
                   },
                 )
-              AppScreenState.SelfTest ->
+              AppScreenState.LinuxUpdate ->
                 SelfTestScreen(
                   settingsStore = settingsStore,
                   onBack = { screenState = AppScreenState.Terminal },
@@ -274,10 +351,14 @@ class MainActivity : ComponentActivity() {
                 BinaryDebugScreen(
                   onBack = {
                     screenState =
-                      if (state.returnToError != null) {
-                        AppScreenState.FatalError(state.returnToError)
-                      } else {
-                        AppScreenState.Terminal
+                      when {
+                        state.returnToError != null -> AppScreenState.FatalError(state.returnToError)
+                        state.returnToBootstrap ->
+                          AppScreenState.Bootstrapping(
+                            InstallProgress.CheckingEnvironment,
+                            awaitingConsent = true,
+                          )
+                        else -> AppScreenState.Terminal
                       }
                   },
                 )

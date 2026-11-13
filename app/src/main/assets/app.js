@@ -4,20 +4,33 @@
   const $ = (id) => document.getElementById(id);
   const termWrap = $("term-wrap");
   const tabsNav = $("tabs");
+  const tabDrawer = $("tab-drawer");
+  const drawerBackdrop = $("drawer-backdrop");
   const keysBar = $("keys");
+  const freeWriteBar = $("free-write");
+  const freeWriteInput = $("fw-input");
   const statusEl = $("hp");
+  const btnUpdate = $("btn-update");
   const setModal = $("set");
   const plugModal = $("plug");
 
   const hasBridge = typeof window.TermBridge !== "undefined";
 
+  const THEME_PACKS = [
+    { id: "amber", name: "Amber Theme Pack", desc: "Warm retro amber CRT palette" },
+    { id: "ice", name: "Ice Theme Pack", desc: "Arctic cyan dark terminal palette" },
+    { id: "matrix", name: "Matrix Theme Pack", desc: "High-contrast phosphor green palette" },
+    { id: "dracula", name: "Dracula Theme Pack", desc: "Classic twilight purple & pink palette" },
+    { id: "nord", name: "Nord Theme Pack", desc: "Muted Scandinavian slate-blue palette" },
+  ];
+
   let settings = {
-    theme: "dark",
+    theme: "auto",
     font: 14,
     keys: true,
-    save: true,
-    user: "root",
-    host: "alpine",
+    themePacks: [],
+    updateSeen: false,
+    storageGranted: false,
   };
 
   if (hasBridge && typeof window.TermBridge.loadSettings === "function") {
@@ -27,18 +40,17 @@
     } catch (_) {}
   } else {
     try {
-      const saved = JSON.parse(localStorage.getItem("terx_ui") || "null");
+      const saved = JSON.parse(localStorage.getItem("terx_ui_v2") || "null");
       if (saved) settings = { ...settings, ...saved };
     } catch (_) {}
   }
 
   function saveSettings() {
-    if (!settings.save) return;
     if (hasBridge && typeof window.TermBridge.saveSettings === "function") {
       window.TermBridge.saveSettings(JSON.stringify(settings));
     } else {
       try {
-        localStorage.setItem("terx_ui", JSON.stringify(settings));
+        localStorage.setItem("terx_ui_v2", JSON.stringify(settings));
       } catch (_) {}
     }
   }
@@ -68,7 +80,7 @@
       cursor: ac,
       cursorAccent: bg,
       selectionBackground: sel,
-      black: isLight ? "#1b1740" : "#15132a",
+      black: isLight ? "#141133" : "#15132a",
       red: err,
       green: isLight ? "#15803d" : "#4ade80",
       yellow: isLight ? "#b45309" : "#facc15",
@@ -87,7 +99,6 @@
     };
   }
 
-  // Base64 <-> UTF-8 byte helpers for lossless binary transport over @JavascriptInterface
   function strToBase64(str) {
     const bytes = new TextEncoder().encode(str);
     let bin = "";
@@ -106,7 +117,6 @@
     return bytes;
   }
 
-  // Sticky modifier state: 0 = off, 1 = sticky (single shot), 2 = locked
   const modState = { ctrl: 0, alt: 0 };
 
   function updateModButtons() {
@@ -169,10 +179,10 @@
     return out;
   }
 
-  // Tab & Terminal management (1 xterm.js + 1 real PtySession per tab)
   const tabs = [];
   let activeTabId = null;
   let nextTabNum = 1;
+  let freeWriteOpen = false;
 
   function activeTab() {
     return tabs.find((t) => t.id === activeTabId) || null;
@@ -180,6 +190,7 @@
 
   function focusTerminal(tab, openKeyboard) {
     if (!tab) return;
+    if (freeWriteOpen) return;
     if (hasBridge) {
       window.TermBridge.setTerminalInputMode(true);
     }
@@ -214,8 +225,6 @@
     } catch (_) {}
   }
 
-  // Dynamic position:fixed #keys placement using visualViewport offsetTop + height
-  // Ensures #keys sits flush above the active keyboard and never floats over terminal text.
   function syncFixedKeyBarPosition() {
     const vv = window.visualViewport;
     let keyboardBottomOffset = 0;
@@ -227,9 +236,32 @@
     keysBar.style.bottom = keyboardBottomOffset + "px";
 
     const keysHeight = keysVisible ? keysBar.offsetHeight : 0;
-    termWrap.style.paddingBottom = 6 + keyboardBottomOffset + keysHeight + "px";
+    const fwVisible = freeWriteOpen && setModal.hidden && plugModal.hidden;
+    freeWriteBar.hidden = !fwVisible;
+    freeWriteBar.style.bottom = keyboardBottomOffset + keysHeight + "px";
+    const fwHeight = fwVisible ? freeWriteBar.offsetHeight : 0;
+
+    termWrap.style.paddingBottom = 6 + keyboardBottomOffset + keysHeight + fwHeight + "px";
     scheduleFit();
   }
+
+  function openTabDrawer() {
+    drawTabs();
+    tabDrawer.hidden = false;
+    drawerBackdrop.hidden = false;
+  }
+
+  function closeTabDrawer() {
+    tabDrawer.hidden = true;
+    drawerBackdrop.hidden = true;
+  }
+
+  $("drawer-close").onclick = closeTabDrawer;
+  drawerBackdrop.onclick = closeTabDrawer;
+  $("tab-add").onclick = () => {
+    createTab();
+    closeTabDrawer();
+  };
 
   function drawTabs() {
     tabsNav.innerHTML = "";
@@ -256,16 +288,12 @@
         btn.appendChild(close);
       }
 
-      btn.onclick = () => selectTab(t.id);
+      btn.onclick = () => {
+        selectTab(t.id);
+        closeTabDrawer();
+      };
       tabsNav.appendChild(btn);
     });
-
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.textContent = "+";
-    addBtn.setAttribute("aria-label", "New tab");
-    addBtn.onclick = () => createTab();
-    tabsNav.appendChild(addBtn);
   }
 
   function configureTerminalTextarea(term, tabId) {
@@ -279,7 +307,7 @@
     ta.setAttribute("spellcheck", "false");
 
     ta.addEventListener("focus", () => {
-      if (hasBridge) window.TermBridge.setTerminalInputMode(true);
+      if (hasBridge && !freeWriteOpen) window.TermBridge.setTerminalInputMode(true);
     });
 
     ta.addEventListener("beforeinput", (e) => {
@@ -370,13 +398,61 @@
     }
   }
 
+  let lastFwCloseMs = 0;
+
+  function openFreeWrite() {
+    freeWriteOpen = true;
+    syncFixedKeyBarPosition();
+    if (hasBridge) window.TermBridge.setTerminalInputMode(false);
+    setTimeout(() => {
+      freeWriteInput.focus();
+      if (hasBridge) window.TermBridge.showKeyboard();
+    }, 30);
+  }
+
+  function closeFreeWrite() {
+    freeWriteOpen = false;
+    lastFwCloseMs = Date.now();
+    if (keysBar.scrollLeft > 0) {
+      keysBar.scrollLeft = 0;
+    }
+    syncFixedKeyBarPosition();
+    if (hasBridge) window.TermBridge.setTerminalInputMode(true);
+    focusTerminal(activeTab(), false);
+  }
+
+  function sendFreeWrite(withEnter) {
+    const t = activeTab();
+    const val = freeWriteInput.value;
+    if (t && (val || withEnter)) {
+      sendInputToNative(t.id, withEnter ? val + "\r" : val);
+      freeWriteInput.value = "";
+    }
+  }
+
+  freeWriteInput.addEventListener("focus", () => {
+    if (hasBridge) window.TermBridge.setTerminalInputMode(false);
+  });
+  freeWriteInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendFreeWrite(true);
+    }
+  });
+  $("fw-send").onclick = () => sendFreeWrite(false);
+  $("fw-enter").onclick = () => sendFreeWrite(true);
+  $("fw-close").onclick = closeFreeWrite;
+
+  // Keys bar: left side has ≡ (tab drawer), real TAB, --help, sticky CTRL/ALT, D-pad, right end reveals Free Write
   const KEYS = [
-    { label: "ESC", seq: "\x1b" },
+    { label: "≡", action: "drawer" },
     { label: "TAB", seq: "\t" },
-    { label: "/", seq: "/" },
+    { label: "ESC", seq: "\x1b" },
+    { label: "--help", seq: " --help" },
     { label: "CTRL", mod: "ctrl" },
-    { label: "-", seq: "-" },
     { label: "ALT", mod: "alt" },
+    { label: "/", seq: "/" },
+    { label: "-", seq: "-" },
     { label: "HOME", seq: "\x1b[H" },
     { label: "←", seq: "\x1b[D" },
     { label: "↑", seq: "\x1b[A" },
@@ -390,6 +466,7 @@
     { label: ">", seq: ">" },
     { label: "Copy", action: "copy" },
     { label: "Paste", action: "paste" },
+    { label: "✎ Write", action: "free_write" },
     { label: "⌨", action: "hide_kb" },
   ];
 
@@ -432,7 +509,15 @@
     btn.ontouchstart = (e) => e.stopPropagation();
     btn.onclick = () => {
       const t = activeTab();
-      if (k.mod) {
+      if (k.action === "drawer") {
+        if (tabDrawer.hidden) openTabDrawer();
+        else closeTabDrawer();
+        return;
+      } else if (k.action === "free_write") {
+        if (freeWriteOpen) closeFreeWrite();
+        else openFreeWrite();
+        return;
+      } else if (k.mod) {
         toggleMod(k.mod);
       } else if (k.action === "copy") {
         copyActiveSelection();
@@ -450,6 +535,41 @@
     keysBar.appendChild(btn);
   });
 
+  // Scrolling #keys all the way to the right edge automatically toggles Free Writing Bar
+  keysBar.addEventListener("scroll", () => {
+    if (Date.now() - lastFwCloseMs < 350) return;
+    const maxScroll = keysBar.scrollWidth - keysBar.clientWidth;
+    if (maxScroll > 20 && keysBar.scrollLeft >= maxScroll - 4 && !freeWriteOpen) {
+      openFreeWrite();
+    }
+  });
+
+  function rebuildThemeDropdown() {
+    const sel = $("s-theme");
+    sel.innerHTML = "";
+    const baseOptions = [
+      ["auto", "Auto (Dark / Light)"],
+      ["dark", "Full Dark"],
+      ["light", "Full Light"],
+    ];
+    baseOptions.forEach(([val, text]) => {
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = text;
+      sel.appendChild(opt);
+    });
+    const installed = Array.isArray(settings.themePacks) ? settings.themePacks : [];
+    THEME_PACKS.forEach((pack) => {
+      if (installed.includes(pack.id)) {
+        const opt = document.createElement("option");
+        opt.value = pack.id;
+        opt.textContent = pack.name;
+        sel.appendChild(opt);
+      }
+    });
+    sel.value = settings.theme;
+  }
+
   function applySettings() {
     const rootEl = document.documentElement;
     if (settings.theme === "auto") {
@@ -457,16 +577,23 @@
     } else {
       rootEl.dataset.theme = settings.theme;
     }
+    rebuildThemeDropdown();
     const themeObj = currentXtermTheme();
     tabs.forEach((t) => {
       t.term.options.theme = themeObj;
       t.term.options.fontSize = settings.font;
     });
     $("s-font-val").textContent = String(settings.font);
+    btnUpdate.hidden = !!settings.updateSeen;
     syncFixedKeyBarPosition();
   }
 
-  // Tap-to-open keyboard & Pinch-to-zoom inside terminal viewport
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (settings.theme === "auto") applySettings();
+    });
+  }
+
   let pinchStartDist = 0;
   let pinchStartFont = settings.font;
   let tapStartX = 0;
@@ -543,27 +670,39 @@
   }
   window.addEventListener("resize", syncFixedKeyBarPosition);
 
-  ["s-user", "s-host", "p-search"].forEach((id) => {
+  ["p-search"].forEach((id) => {
     const el = $(id);
     if (!el) return;
     el.addEventListener("focus", () => {
       if (hasBridge) window.TermBridge.setTerminalInputMode(false);
     });
     el.addEventListener("blur", () => {
-      if (setModal.hidden && plugModal.hidden && hasBridge) {
+      if (setModal.hidden && plugModal.hidden && !freeWriteOpen && hasBridge) {
         window.TermBridge.setTerminalInputMode(true);
       }
     });
   });
 
+  function updateStorageButtonLabel() {
+    const granted = hasBridge && typeof window.TermBridge.hasStoragePermission === "function"
+      ? window.TermBridge.hasStoragePermission()
+      : settings.storageGranted;
+    settings.storageGranted = granted;
+    $("s-storage").textContent = granted ? "Granted ✓" : "Grant Access";
+  }
+
+  window.addEventListener("focus", updateStorageButtonLabel);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) updateStorageButtonLabel();
+  });
+
   function openSettings() {
-    $("s-theme").value = settings.theme;
+    closeTabDrawer();
+    rebuildThemeDropdown();
     $("s-font").value = String(settings.font);
     $("s-font-val").textContent = String(settings.font);
-    $("s-user").value = settings.user;
-    $("s-host").value = settings.host;
     $("s-keys").checked = settings.keys;
-    $("s-save").checked = settings.save;
+    updateStorageButtonLabel();
     if (hasBridge) window.TermBridge.hideKeyboard();
     setModal.hidden = false;
     syncFixedKeyBarPosition();
@@ -578,20 +717,34 @@
   $("gear").onclick = openSettings;
   $("s-close").onclick = closeSettings;
 
-  $("btn-test").onclick = () => {
+  $("s-storage").onclick = () => {
+    if (hasBridge && typeof window.TermBridge.requestStoragePermission === "function") {
+      window.TermBridge.requestStoragePermission();
+    }
+  };
+
+  btnUpdate.onclick = () => {
+    settings.updateSeen = true;
+    btnUpdate.hidden = true;
+    saveSettings();
     if (hasBridge) {
+      window.TermBridge.markLinuxUpdateSeen();
       window.TermBridge.hideKeyboard();
       window.TermBridge.openSelfTest();
     }
   };
-  $("s-test").onclick = () => {
+
+  $("s-update").onclick = () => {
     setModal.hidden = true;
+    settings.updateSeen = true;
+    btnUpdate.hidden = true;
     syncFixedKeyBarPosition();
     if (hasBridge) {
       window.TermBridge.hideKeyboard();
       window.TermBridge.openSelfTest();
     }
   };
+
   $("s-bindbg").onclick = () => {
     setModal.hidden = true;
     syncFixedKeyBarPosition();
@@ -604,10 +757,7 @@
   setModal.addEventListener("input", () => {
     settings.theme = $("s-theme").value;
     settings.font = Number($("s-font").value) || 14;
-    settings.user = $("s-user").value.trim() || "root";
-    settings.host = $("s-host").value.trim() || "alpine";
     settings.keys = $("s-keys").checked;
-    settings.save = $("s-save").checked;
     applySettings();
     saveSettings();
   });
@@ -617,35 +767,41 @@
       window.TermBridge.resetSettings();
     }
     try {
-      localStorage.removeItem("terx_ui");
+      localStorage.removeItem("terx_ui_v2");
     } catch (_) {}
-    settings = { theme: "dark", font: 14, keys: true, save: true, user: "root", host: "alpine" };
+    settings = {
+      theme: "auto",
+      font: 14,
+      keys: true,
+      themePacks: [],
+      updateSeen: settings.updateSeen,
+      storageGranted: settings.storageGranted,
+    };
     applySettings();
     closeSettings();
   };
 
-  // Real Alpine Linux package & GitHub repository commands (never auto-run)
   const CATALOG = [
-    ["git", "git/git", "Distributed version control", "Dev", "apk add git"],
-    ["openssh", "openssh/openssh-portable", "SSH client and tools", "Network", "apk add openssh"],
-    ["curl", "curl/curl", "Command line tool for transferring data with URLs", "Network", "apk add curl"],
-    ["wget", "mirror/wget", "Network retriever", "Network", "apk add wget"],
-    ["python3", "python/cpython", "Python 3 runtime and pip", "Dev", "apk add python3 py3-pip"],
-    ["nodejs", "nodejs/node", "JavaScript runtime and npm", "Dev", "apk add nodejs npm"],
-    ["neovim", "neovim/neovim", "Hyperextensible Vim-based text editor", "Editors", "apk add neovim"],
-    ["nano", "built-in", "Friendly terminal text editor", "Editors", "apk add nano"],
-    ["tmux", "tmux/tmux", "Terminal multiplexer", "Shell", "apk add tmux"],
-    ["zsh", "zsh-users/zsh", "Powerful interactive shell", "Shell", "apk add zsh"],
-    ["fzf", "junegunn/fzf", "Command-line fuzzy finder", "Shell", "apk add fzf"],
-    ["ripgrep", "BurntSushi/ripgrep", "Fast recursive regex search", "Files", "apk add ripgrep"],
-    ["fd", "sharkdp/fd", "Simple, fast alternative to find", "Files", "apk add fd"],
-    ["bat", "sharkdp/bat", "cat clone with syntax highlighting", "Files", "apk add bat"],
-    ["jq", "jqlang/jq", "Command-line JSON processor", "Files", "apk add jq"],
-    ["htop", "htop-dev/htop", "Interactive process viewer", "System", "apk add htop"],
-    ["fastfetch", "fastfetch-cli/fastfetch", "Fast system information tool", "System", "apk add fastfetch"],
-    ["ohmyzsh", "ohmyzsh/ohmyzsh", "Community zsh framework", "Shell", "git clone https://github.com/ohmyzsh/ohmyzsh"],
-    ["lazygit", "jesseduffield/lazygit", "Simple terminal UI for git commands", "Dev", "apk add lazygit"],
-    ["glow", "charmbracelet/glow", "Render markdown on the CLI", "Docs", "apk add glow"],
+    ...THEME_PACKS.map((p) => [p.id, "terxtreme/themes", p.desc, "Themes", "install theme pack: " + p.name, p.id]),
+    ["git", "git/git", "Distributed version control", "Dev", "apk add git", null],
+    ["openssh", "openssh/openssh-portable", "SSH client and tools", "Network", "apk add openssh", null],
+    ["curl", "curl/curl", "Transfer data with URLs", "Network", "apk add curl", null],
+    ["wget", "mirror/wget", "Network retriever", "Network", "apk add wget", null],
+    ["python3", "python/cpython", "Python 3 runtime and pip", "Dev", "apk add python3 py3-pip", null],
+    ["nodejs", "nodejs/node", "JavaScript runtime and npm", "Dev", "apk add nodejs npm", null],
+    ["neovim", "neovim/neovim", "Hyperextensible Vim-based text editor", "Editors", "apk add neovim", null],
+    ["nano", "built-in", "Friendly terminal text editor", "Editors", "apk add nano", null],
+    ["tmux", "tmux/tmux", "Terminal multiplexer", "Shell", "apk add tmux", null],
+    ["zsh", "zsh-users/zsh", "Powerful interactive shell", "Shell", "apk add zsh", null],
+    ["fzf", "junegunn/fzf", "Command-line fuzzy finder", "Shell", "apk add fzf", null],
+    ["ripgrep", "BurntSushi/ripgrep", "Fast recursive regex search", "Files", "apk add ripgrep", null],
+    ["fd", "sharkdp/fd", "Simple, fast alternative to find", "Files", "apk add fd", null],
+    ["bat", "sharkdp/bat", "cat clone with syntax highlighting", "Files", "apk add bat", null],
+    ["jq", "jqlang/jq", "Command-line JSON processor", "Files", "apk add jq", null],
+    ["htop", "htop-dev/htop", "Interactive process viewer", "System", "apk add htop", null],
+    ["fastfetch", "fastfetch-cli/fastfetch", "Fast system information tool", "System", "apk add fastfetch", null],
+    ["ohmyzsh", "ohmyzsh/ohmyzsh", "Community zsh framework", "Shell", "git clone https://github.com/ohmyzsh/ohmyzsh", null],
+    ["lazygit", "jesseduffield/lazygit", "Simple terminal UI for git commands", "Dev", "apk add lazygit", null],
   ];
 
   let plugCat = "All";
@@ -670,6 +826,7 @@
     });
 
     listEl.innerHTML = "";
+    const installedPacks = Array.isArray(settings.themePacks) ? settings.themePacks : [];
     const filtered = CATALOG.filter(([name, repo, desc, grp, cmd]) => {
       const matchesCat = plugCat === "All" || grp === plugCat;
       const haystack = (name + " " + repo + " " + desc + " " + cmd).toLowerCase();
@@ -677,26 +834,46 @@
     });
 
     if (!filtered.length) {
-      listEl.textContent = "No package matches. Try another search.";
+      listEl.textContent = "No package or theme pack matches.";
       return;
     }
 
-    filtered.forEach(([name, repo, desc, _grp, cmd]) => {
+    filtered.forEach(([name, repo, desc, _grp, cmd, themePackId]) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "it";
 
+      const isPack = !!themePackId;
+      const packInstalled = isPack && installedPacks.includes(themePackId);
+
       const title = document.createElement("b");
-      title.textContent = name;
+      title.textContent = name + (packInstalled ? " · installed ✓" : "");
 
       const sub = document.createElement("small");
       sub.textContent = desc + (repo === "built-in" ? "" : " (" + repo + ")");
 
       const code = document.createElement("code");
-      code.textContent = cmd;
+      code.textContent = isPack
+        ? (packInstalled ? "Tap to apply theme: " + themePackId : "Tap to install & apply theme pack")
+        : cmd;
 
       btn.append(title, sub, code);
       btn.onclick = () => {
+        if (isPack) {
+          if (!settings.themePacks.includes(themePackId)) {
+            settings.themePacks = [...settings.themePacks, themePackId];
+          }
+          settings.theme = themePackId;
+          if (hasBridge && typeof window.TermBridge.installThemePack === "function") {
+            window.TermBridge.installThemePack(themePackId);
+          } else {
+            saveSettings();
+          }
+          applySettings();
+          statusEl.textContent = "theme: " + themePackId;
+          drawPlugins();
+          return;
+        }
         plugModal.hidden = true;
         setModal.hidden = true;
         syncFixedKeyBarPosition();
@@ -754,6 +931,10 @@
       }
     },
     handleBackPress() {
+      if (!tabDrawer.hidden) {
+        closeTabDrawer();
+        return true;
+      }
       if (!plugModal.hidden) {
         plugModal.hidden = true;
         syncFixedKeyBarPosition();
@@ -763,6 +944,10 @@
       }
       if (!setModal.hidden) {
         closeSettings();
+        return true;
+      }
+      if (freeWriteOpen) {
+        closeFreeWrite();
         return true;
       }
       return false;

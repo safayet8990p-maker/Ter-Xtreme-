@@ -90,11 +90,11 @@ fun SelfTestScreen(
         }
         Column(modifier = Modifier.weight(1f)) {
           Text(
-            text = stringResource(R.string.selftest_title),
+            text = stringResource(R.string.linux_update_title),
             style = MaterialTheme.typography.headlineSmall,
           )
           Text(
-            text = stringResource(R.string.selftest_subtitle),
+            text = stringResource(R.string.linux_update_subtitle),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -127,7 +127,7 @@ fun SelfTestScreen(
             modifier = Modifier.size(18.dp),
           )
           Spacer(modifier = Modifier.size(6.dp))
-          Text(if (running) "Running..." else stringResource(R.string.action_run_selftest))
+          Text(if (running) "Updating..." else stringResource(R.string.action_run_update))
         }
         OutlinedButton(
           onClick = { copySelfTestLogs(context, items) },

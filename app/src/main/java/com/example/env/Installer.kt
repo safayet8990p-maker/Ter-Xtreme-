@@ -72,9 +72,18 @@ object Installer {
 
   private val client = OkHttpClient.Builder().followRedirects(true).build()
 
+  private const val INSTALLED_MARKER = ".terxtreme_installed"
+
   fun isRootfsReady(context: Context): Boolean {
     val rootfs = Launcher.rootfsDir(context)
-    return File(rootfs, "bin/sh").exists() && File(rootfs, "sbin/apk").exists()
+    val marker = File(rootfs, INSTALLED_MARKER)
+    val hasShell = File(rootfs, "bin/sh").exists()
+    if (hasShell && marker.exists()) return true
+    if (hasShell && File(rootfs, "sbin/apk").exists()) {
+      runCatching { marker.writeText("ready\n") }
+      return true
+    }
+    return false
   }
 
   fun hasActiveNetwork(context: Context): Boolean {
@@ -215,6 +224,14 @@ object Installer {
       stagingDir.deleteRecursively()
       stagingDir.mkdirs()
       extractTarGz(archiveFile, stagingDir, onProgress)
+      // Preserve any pre-existing user /root files if upgrading or repairing rootfs
+      val existingRoot = File(finalDir, "root")
+      val stagedRoot = File(stagingDir, "root")
+      if (existingRoot.exists() && existingRoot.isDirectory) {
+        stagedRoot.mkdirs()
+        existingRoot.copyRecursively(stagedRoot, overwrite = true)
+      }
+      File(stagingDir, INSTALLED_MARKER).writeText("version=${release.version}\n")
       finalDir.deleteRecursively()
       check(stagingDir.renameTo(finalDir)) { "Failed promoting extracted rootfs" }
       archiveFile.delete()

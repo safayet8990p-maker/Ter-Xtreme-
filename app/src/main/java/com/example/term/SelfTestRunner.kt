@@ -29,16 +29,16 @@ object SelfTestRunner {
   fun initialItems(): List<SelfTestItem> =
     listOf(
       SelfTestItem("arch", "uname -m", "Verify aarch64 architecture inside proot"),
-      SelfTestItem("ping", "ping -c1 1.1.1.1", "Verify raw ICMP / socket connectivity"),
+      SelfTestItem("apk_update", "apk update", "Update Alpine package index from HTTPS mirrors"),
+      SelfTestItem("apk_upgrade", "apk upgrade --available", "Upgrade installed Alpine packages"),
       SelfTestItem("dns", "nslookup example.com", "Verify DNS resolution via /etc/resolv.conf"),
-      SelfTestItem("apk_update", "apk update", "Verify Alpine HTTPS mirror index fetch"),
-      SelfTestItem("apk_add", "apk add --no-cache curl", "Verify installing curl package"),
-      SelfTestItem("curl", "curl -I https://example.com", "Verify HTTPS TLS + ca-certificates"),
-      SelfTestItem("wget", "wget -O /tmp/t https://example.com && ls -l /tmp/t", "Verify wget file download"),
+      SelfTestItem("apk_add", "apk add --no-cache curl ca-certificates", "Install curl & TLS certs"),
+      SelfTestItem("curl", "curl -I https://example.com", "Verify HTTPS TLS connectivity"),
+      SelfTestItem("storage", "ls -ld /storage/emulated/0", "Verify external storage bind mount"),
       SelfTestItem(
         "bad_cmd",
         "terxtreme_nonexistent_cmd_404",
-        "Verify real /bin/sh reports 'not found' (no fake shell)",
+        "Verify real /bin/sh reports 'not found'",
       ),
     )
 
@@ -49,7 +49,7 @@ object SelfTestRunner {
   ) =
     withContext(Dispatchers.IO) {
       val items = initialItems().toMutableList()
-      onUpdate(items.toList())
+      withContext(Dispatchers.Main) { onUpdate(items.toList()) }
 
       val binaries = Launcher.checkBinaries(context)
       if (binaries !is ProotCheckResult.Ready) {
@@ -62,17 +62,18 @@ object SelfTestRunner {
               output = "Missing binaries in ${missing.nativeDir}: ${missing.missingFiles.joinToString()}",
             )
         }
-        onUpdate(items.toList())
+        withContext(Dispatchers.Main) { onUpdate(items.toList()) }
         return@withContext
       }
 
       NetSetup.ensureGuestConfigs(context)
+      settingsStore.markLinuxUpdateBannerSeen()
       val noSeccomp = settingsStore.getCurrent().prootNoSeccomp
 
       for (i in items.indices) {
         val current = items[i]
         items[i] = current.copy(status = SelfTestStatus.RUNNING, output = "")
-        onUpdate(items.toList())
+        withContext(Dispatchers.Main) { onUpdate(items.toList()) }
 
         val result =
           NetSetup.runProotCommand(
@@ -94,7 +95,7 @@ object SelfTestRunner {
           }
 
         DiagnosticLog.log(
-          "SelfTest",
+          "LinuxUpdate",
           "[${if (passed) "PASS" else "FAIL"}] ${current.command} (exit=${result.exitCode})",
         )
 
@@ -104,7 +105,7 @@ object SelfTestRunner {
             exitCode = result.exitCode,
             output = cleanOut.ifBlank { "(no output)" },
           )
-        onUpdate(items.toList())
+        withContext(Dispatchers.Main) { onUpdate(items.toList()) }
       }
     }
 }

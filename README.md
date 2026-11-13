@@ -6,16 +6,16 @@ Standalone Android (`arm64-v8a`) Linux terminal running **Alpine Linux (`aarch64
 
 ## Architecture
 
-- **UI (`app/src/main/assets/` + Compose shell):** Edge-to-edge Jetpack Compose shell hosting a local-only `WebView` (`xterm.js` 5.5.0 + `addon-fit` 0.10.0 extracted from Maven WebJar assets at build time — zero CDN requests).
-- **Keyboard & Extra Keys (`#keys`):** `position: fixed` bar tracked dynamically against `window.visualViewport` (`height` + `offsetTop`) so `#keys` stays docked cleanly above the soft keyboard without overlapping terminal lines. Supports sticky/locked `CTRL` and `ALT`, `ESC`, `TAB`, arrows, `HOME`/`END`/`PGUP`/`PGDN`, pinch-to-zoom, and native clipboard `Copy`/`Paste`.
+- **UI (`app/src/main/assets/` + Compose shell, v2.0.1):** Edge-to-edge Jetpack Compose shell hosting a local-only `WebView` (`xterm.js` 5.5.0 + `addon-fit` 0.10.0 extracted from Maven WebJar assets at build time — zero CDN requests), with `Auto (Dark/Light)`, `Full Dark`, `Full Light`, and installable **Theme Packs** (`Amber`, `Ice`, `Matrix`, `Dracula`, `Nord`). Screenshots are allowed (`FLAG_SECURE` cleared).
+- **Keyboard, Slide-Out Tabs & Free Writing Bar (`#keys`, `#tab-drawer`, `#free-write`):** `position: fixed` bar tracked dynamically against `window.visualViewport` (`height` + `offsetTop`). Features the `≡` button opening a left slide-out multi-tab drawer (`term 1 ×`, `term 2 ×`, `+ New Tab`), real `TAB` completion, `--help` shortcut, sticky/locked `CTRL`/`ALT`, D-pad, pinch-to-zoom, clipboard `Copy`/`Paste`, and a **Free Writing Bar** (via `✎ Write` or swiping `#keys` right) for full Gboard autocorrect/voice/multilingual input.
 - **PTY Layer (`app/src/main/cpp/terpty.c` + `PtySession.kt`):** Custom C JNI (`libterpty.so`) using Bionic `<pty.h>` (`openpty`, `fork`, `setsid`, `TIOCSCTTY`, `TIOCSWINSZ`, `poll`, `waitpid`) with 16ms output batching and Base64 bridging over `TermBridge`.
 - **Linux Guest (`Installer.kt`, `NetSetup.kt`, `Launcher.kt`):**
-  1. Verifies `libproot.so` and `libproot-loader.so` in `applicationInfo.nativeLibraryDir`.
-  2. Fetches `latest-releases.yaml` from `dl-cdn.alpinelinux.org`, downloads `alpine-minirootfs-*-aarch64.tar.gz` with HTTP `Range` resume, verifies SHA256, and unpacks via Apache Commons Compress preserving symlinks and POSIX permissions.
-  3. Writes `/etc/resolv.conf` (`1.1.1.1`, `8.8.8.8`), `/etc/hosts`, HTTPS Alpine repositories, `/usr/local/bin/pkg`, and runs initial `apk update && apk add --no-cache ca-certificates`.
-  4. Spawns `proot --kill-on-exit --link2symlink -0 -r <rootfs> -b /dev -b /proc -b /sys -w /root /bin/sh -l`, with automatic `PROOT_NO_SECCOMP=1` retry if a device kernel blocks `ptrace`+seccomp.
+  1. Verifies `libproot.so` and `libproot-loader.so` in `applicationInfo.nativeLibraryDir` (inspectable anytime via **Settings → Binary Debug**).
+  2. Prompts once with an explicit **Install Alpine Linux** action (never auto-downloading on subsequent launches; persists `.terxtreme_installed` and `/root` files + `/root/.ash_history`).
+  3. Configures `/etc/resolv.conf` (`1.1.1.1`, `8.8.8.8`), `/etc/hosts`, HTTPS Alpine repositories, `root:~# ` prompt, `~/storage` symlink, and `/usr/local/bin/pkg`.
+  4. Spawns `proot --kill-on-exit --link2symlink -0 -r <rootfs> -b /dev -b /proc -b /sys -b /storage/emulated/0 -b /storage/emulated/0:/sdcard -w /root /bin/sh -l`, with automatic `PROOT_NO_SECCOMP=1` retry when needed.
 - **Background Resilience (`TermService.kt`):** Runs an Android `specialUse` foreground service with a partial `WakeLock` and ongoing notification (**Stop** action) while PTY tabs are open.
-- **Built-in Self-Test (`SelfTestRunner.kt`):** Interactive diagnostic screen running `uname -m`, `ping -c1 1.1.1.1`, `nslookup example.com`, `apk update`, `apk add --no-cache curl`, `curl -I https://example.com`, `wget`, and a real shell `not found` check.
+- **Linux Update (`SelfTestRunner.kt`):** Interactive diagnostic & update screen (`uname -m`, `apk update`, `apk upgrade --available`, `nslookup example.com`, `apk add --no-cache curl ca-certificates`, `curl -I https://example.com`, `ls -ld /storage/emulated/0`, and `not found` verification). Shown once in the home header and always available in **Settings → Linux Update**.
 
 ---
 

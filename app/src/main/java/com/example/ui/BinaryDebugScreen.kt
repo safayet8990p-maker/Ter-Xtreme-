@@ -150,7 +150,7 @@ private fun RuntimeFlagsCard(report: NativeEnvironmentReport) {
       verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
       Text(
-        text = "Runtime Native Packaging",
+        text = "Runtime Native Packaging & Loader",
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
       )
@@ -162,6 +162,16 @@ private fun RuntimeFlagsCard(report: NativeEnvironmentReport) {
         text = "FLAG_EXTRACT_NATIVE_LIBS: ${report.extractNativeLibsFlag}",
         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
         color = if (report.extractNativeLibsFlag) Color(0xFF4ADE80) else MaterialTheme.colorScheme.error,
+      )
+      Text(
+        text = "System.loadLibrary(\"terpty\"): ${report.terPtyLoadStatus}",
+        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+        color =
+          if (report.terPtyLoadStatus.startsWith("OK")) {
+            Color(0xFF4ADE80)
+          } else {
+            MaterialTheme.colorScheme.error
+          },
       )
       Text(
         text = "SUPPORTED_ABIS: ${report.supportedAbis}",
@@ -214,9 +224,21 @@ private fun BinaryReportCard(lib: ElfBinaryReport) {
         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
         color = MaterialTheme.colorScheme.onSurface,
       )
+      if (lib.hexHeader.isNotBlank()) {
+        Text(
+          text = "hex[0..15]: ${lib.hexHeader}",
+          style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+          color = MaterialTheme.colorScheme.secondary,
+        )
+      }
       Text(
         text = "align: ${lib.alignmentLabel}" +
           if (lib.sha256Prefix.isNotBlank()) "  sha256: ${lib.sha256Prefix}" else "",
+        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      Text(
+        text = "exec: ${lib.runtimeExecProbe}",
         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )

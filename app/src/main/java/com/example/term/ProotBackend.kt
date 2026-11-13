@@ -72,8 +72,6 @@ class ProotBackend(
         context = context,
         binaries = binaries,
         noSeccomp = useNoSeccomp,
-        username = prefs.username,
-        hostname = prefs.hostname,
       )
 
     sessions.remove(tabId)?.close()

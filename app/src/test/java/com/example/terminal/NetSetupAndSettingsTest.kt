@@ -29,19 +29,21 @@ class NetSetupAndSettingsTest {
   @Test
   fun `AppSettings round-trips valid JSON and clamps font size`() {
     val base = AppSettings()
+    assertEquals("auto", base.theme)
     val updated =
       AppSettings.fromJson(
-        """{"theme":"amber","font":48,"keys":false,"save":true,"user":"dev","host":"box"}""",
+        """{"theme":"amber","font":48,"keys":false,"themePacks":["amber","nord"],"updateSeen":true}""",
         base,
       )
     assertEquals("amber", updated.theme)
     assertEquals(24, updated.fontSize)
     assertEquals(false, updated.showKeyBar)
-    assertEquals("dev", updated.username)
-    assertEquals("box", updated.hostname)
+    assertEquals(setOf("amber", "nord"), updated.installedThemePacks)
+    assertEquals(true, updated.linuxUpdateBannerSeen)
 
-    val reParsed = AppSettings.fromJson(updated.toJsonString(), base)
+    val reParsed = AppSettings.fromJson(updated.toJsonString(storageGranted = true), base)
     assertEquals(updated, reParsed)
+    assertTrue(updated.toJsonString(storageGranted = true).contains("\"storageGranted\":true"))
   }
 
   @Test
@@ -55,21 +57,41 @@ class NetSetupAndSettingsTest {
   }
 
   @Test
-  fun `SelfTestRunner defines all 8 live diagnostic steps`() {
+  fun `SelfTestRunner defines all 8 Linux Update diagnostic steps`() {
     val items = SelfTestRunner.initialItems()
     assertEquals(8, items.size)
     assertEquals(
       listOf(
         "uname -m",
-        "ping -c1 1.1.1.1",
-        "nslookup example.com",
         "apk update",
-        "apk add --no-cache curl",
+        "apk upgrade --available",
+        "nslookup example.com",
+        "apk add --no-cache curl ca-certificates",
         "curl -I https://example.com",
-        "wget -O /tmp/t https://example.com && ls -l /tmp/t",
+        "ls -ld /storage/emulated/0",
         "terxtreme_nonexistent_cmd_404",
       ),
       items.map { it.command },
     )
+  }
+
+  @Test
+  fun `Installer isRootfsReady respects installed marker and NetSetup configures root prompt`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val rootfs = Launcher.rootfsDir(context)
+    rootfs.deleteRecursively()
+    assertEquals(false, com.example.env.Installer.isRootfsReady(context))
+
+    java.io.File(rootfs, "bin").mkdirs()
+    java.io.File(rootfs, "bin/sh").writeText("#!/bin/sh\n")
+    java.io.File(rootfs, ".terxtreme_installed").writeText("version=3.21.3\n")
+    assertEquals(true, com.example.env.Installer.isRootfsReady(context))
+
+    NetSetup.ensureGuestConfigs(context)
+    val profile = java.io.File(rootfs, "etc/profile.d/terxtreme.sh").readText()
+    assertTrue(profile.contains("HISTFILE=/root/.ash_history"))
+    assertTrue(profile.contains("root"))
+    assertTrue(!profile.contains("localhost"))
+    rootfs.deleteRecursively()
   }
 }

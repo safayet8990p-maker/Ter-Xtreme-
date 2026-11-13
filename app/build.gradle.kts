@@ -80,8 +80,8 @@ android {
     // Target Android 14 (API 34) for compatibility with 4KB-aligned community proot builds,
     // while our C JNI compiles with 16KB page alignment (-Wl,-z,max-page-size=16384) for Android 15+.
     targetSdk = 34
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 201
+    versionName = "2.0.1"
 
     ndk { abiFilters += "arm64-v8a" }
 

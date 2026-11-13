@@ -41,16 +41,19 @@ class NativeBinaryInspectorTest {
     val report = NativeBinaryInspector.inspectFile(elfFile)
     assertTrue(report.exists)
     assertEquals(bytes.size.toLong(), report.sizeBytes)
+    assertTrue(report.hexHeader.startsWith("7F 45 4C 46"))
     assertTrue(report.fileStyleSummary.contains("ELF 64-bit LSB"))
     assertTrue(report.fileStyleSummary.contains("ARM aarch64"))
     assertTrue(report.fileStyleSummary.contains("/system/bin/linker64"))
     assertTrue(report.alignmentLabel.contains("16KB-aligned"))
+    assertTrue(report.runtimeExecProbe.isNotBlank())
   }
 
   @Test
   fun `inspectEnvironment returns expected target library names`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val envReport = NativeBinaryInspector.inspectEnvironment(context)
+    assertTrue(envReport.terPtyLoadStatus.isNotBlank())
     assertEquals(
       listOf("libproot.so", "libproot-loader.so", "libterpty.so"),
       envReport.libraries.map { it.name },
